@@ -325,9 +325,12 @@ CREATE TABLE IF NOT EXISTS order_status_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
   previous_status TEXT,
+  old_status TEXT,
   new_status TEXT NOT NULL,
   changed_by INTEGER,
+  changed_by_role TEXT,
   notes TEXT,
+  note TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
@@ -379,6 +382,7 @@ CREATE TABLE IF NOT EXISTS pages (
   slug TEXT UNIQUE NOT NULL,
   description TEXT,
   content TEXT NOT NULL,
+  image TEXT,
   meta_title TEXT,
   meta_description TEXT,
   status TEXT DEFAULT 'ACTIVE',

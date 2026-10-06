@@ -15,6 +15,8 @@ import {
   LogOut,
   Store,
   CreditCard,
+  Sliders,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -39,6 +41,8 @@ export default function AdminLayout({ activePage, onNavigate, children }) {
     { id: 'admin-membership', label: 'VIP Membership', icon: Award, perm: 'membership.view' },
     { id: 'admin-coupons', label: 'Coupons', icon: Tag, perm: 'coupons.view' },
     { id: 'admin-reports', label: 'Analytics Reports', icon: BarChart3, perm: 'reports.view' },
+    { id: 'admin-sliders', label: 'Home Sliders', icon: Sliders, perm: 'settings.view' },
+    { id: 'admin-pages', label: 'CMS Pages', icon: Globe, perm: 'settings.view' },
     { id: 'admin-staff', label: 'Staff & Roles', icon: ShieldCheck, perm: 'staff.view' },
     { id: 'admin-settings', label: 'Store Settings', icon: Settings, perm: 'settings.view' },
     { id: 'admin-audit', label: 'Audit & WA Logs', icon: FileText, perm: 'audit.view' },

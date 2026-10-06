@@ -237,6 +237,56 @@ class ReportService {
         return { summary, rows };
       }
 
+      case 'cod': {
+        const pDate = this.getDateFilter('p.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(p.id) as total_cod_orders,
+            COALESCE(SUM(CASE WHEN p.status = 'COD_COLLECTED' THEN p.amount ELSE 0 END), 0) as cod_pending_settlement,
+            COALESCE(SUM(CASE WHEN p.status = 'COD_SETTLED' THEN p.amount ELSE 0 END), 0) as cod_settled,
+            COALESCE(SUM(CASE WHEN p.status IN ('COD_COLLECTED', 'COD_SETTLED') THEN p.amount ELSE 0 END), 0) as cod_total_collected,
+            COALESCE(SUM(CASE WHEN p.status = 'COD_PENDING_COLLECTION' THEN p.amount ELSE 0 END), 0) as cod_pending_collection
+           FROM payments p
+           WHERE p.payment_method = 'COD' AND ${pDate.clause}`,
+          pDate.args
+        );
+
+        // Staff-wise collection breakdown
+        const staffWise = await db.query(
+          `SELECT 
+            u.id as staff_id,
+            COALESCE(u.name, 'Unassigned / Store') as staff_name,
+            u.mobile as staff_mobile,
+            COUNT(p.id) as collections_count,
+            COALESCE(SUM(CASE WHEN p.status = 'COD_COLLECTED' THEN p.amount ELSE 0 END), 0) as pending_settlement_amount,
+            COALESCE(SUM(CASE WHEN p.status = 'COD_SETTLED' THEN p.amount ELSE 0 END), 0) as settled_amount,
+            COALESCE(SUM(p.amount), 0) as total_collected_amount
+           FROM payments p
+           LEFT JOIN users u ON p.collected_by = u.id
+           WHERE p.payment_method = 'COD' AND p.status IN ('COD_COLLECTED', 'COD_SETTLED') AND ${pDate.clause}
+           GROUP BY p.collected_by
+           ORDER BY total_collected_amount DESC`,
+          pDate.args
+        );
+
+        // Recent COD transactions
+        const rows = await db.query(
+          `SELECT 
+            p.id, p.order_id, o.order_number, p.amount, p.status, p.created_at,
+            p.collected_at, uColl.name as collected_by_name,
+            p.settled_at, uSett.name as settled_by_name, p.settlement_ref, p.settlement_note
+           FROM payments p
+           JOIN orders o ON p.order_id = o.id
+           LEFT JOIN users uColl ON p.collected_by = uColl.id
+           LEFT JOIN users uSett ON p.settled_by = uSett.id
+           WHERE p.payment_method = 'COD' AND ${pDate.clause}
+           ORDER BY p.id DESC LIMIT 200`,
+          pDate.args
+        );
+
+        return { summary, staffWise, rows };
+      }
+
       case 'customers': {
         const uDate = this.getDateFilter('u.created_at', period, fromDate, toDate);
         const summary = await db.get(

@@ -15,8 +15,10 @@ import {
   X,
   Printer,
   Calendar,
+  Banknote,
 } from 'lucide-react';
 import client from '../../api/client.js';
+import PrintBillModal from '../../components/common/PrintBillModal.jsx';
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -34,6 +36,8 @@ export default function AdminOrders() {
   const [customerMobile, setCustomerMobile] = useState('');
   const [areaId, setAreaId] = useState('ALL');
   const [areas, setAreas] = useState([]);
+  const [deliveryStaffFilter, setDeliveryStaffFilter] = useState('ALL');
+  const [deliveryStaffList, setDeliveryStaffList] = useState([]);
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -42,11 +46,26 @@ export default function AdminOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [statusUpdateNote, setStatusUpdateNote] = useState('');
+  const [assignDeliveryStaffId, setAssignDeliveryStaffId] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [settlingCod, setSettlingCod] = useState(false);
+  const [showBillPrintModal, setShowBillPrintModal] = useState(false);
 
   useEffect(() => {
     loadDeliveryAreas();
+    loadDeliveryStaff();
   }, []);
+
+  async function loadDeliveryStaff() {
+    try {
+      const res = await client.get('/staff/delivery-staff');
+      if (res.success && res.data) {
+        setDeliveryStaffList(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load delivery staff:', err.message);
+    }
+  }
 
   useEffect(() => {
     loadOrders();
@@ -61,6 +80,7 @@ export default function AdminOrders() {
     customerName,
     customerMobile,
     areaId,
+    deliveryStaffFilter,
   ]);
 
   async function loadDeliveryAreas() {
@@ -86,6 +106,7 @@ export default function AdminOrders() {
     if (customerName.trim()) params.append('customer', customerName.trim());
     if (customerMobile.trim()) params.append('mobile', customerMobile.trim());
     if (areaId !== 'ALL') params.append('areaId', areaId);
+    if (deliveryStaffFilter !== 'ALL') params.append('deliveryStaffId', deliveryStaffFilter);
     return params;
   }
 
@@ -142,6 +163,9 @@ export default function AdminOrders() {
       const res = await client.get(`/orders/${orderId}`);
       if (res.success && res.data) {
         setSelectedOrder(res.data);
+        setAssignDeliveryStaffId(
+          res.data.order.delivery_staff_id ? String(res.data.order.delivery_staff_id) : ''
+        );
       }
     } catch (err) {
       alert(`Failed to load order details: ${err.message}`);
@@ -151,6 +175,11 @@ export default function AdminOrders() {
   }
 
   async function handleStatusChange(orderId, newStatus) {
+    if (newStatus === 'OUT_FOR_DELIVERY' && !assignDeliveryStaffId) {
+      alert('Please select a Delivery Staff member before setting status to OUT_FOR_DELIVERY.');
+      return;
+    }
+
     if (
       !confirm(
         `Are you sure you want to update order status to ${newStatus}?${
@@ -168,6 +197,7 @@ export default function AdminOrders() {
       const res = await client.put(`/orders/${orderId}/status`, {
         status: newStatus,
         notes: statusUpdateNote || `Status changed to ${newStatus}`,
+        delivery_staff_id: assignDeliveryStaffId ? Number(assignDeliveryStaffId) : undefined,
       });
       if (res.success) {
         alert(res.message);
@@ -182,11 +212,33 @@ export default function AdminOrders() {
     }
   }
 
+  async function handleSettleCod(orderId) {
+    const ref = prompt('Enter cash vault / deposit reference for this COD settlement:', `SETTLE-${Date.now().toString().slice(-6)}`);
+    if (ref === null) return;
+    setSettlingCod(true);
+    try {
+      const res = await client.put(`/orders/${orderId}/settle-cod`, {
+        settlementRef: ref.trim() || `SETTLE-${Date.now()}`,
+        settlementNote: 'Cash handed over to store by delivery staff',
+      });
+      if (res.success) {
+        alert(res.message);
+        loadOrders();
+        viewOrderDetails(orderId);
+      }
+    } catch (err) {
+      alert(`COD settlement failed: ${err.message}`);
+    } finally {
+      setSettlingCod(false);
+    }
+  }
+
   function resetFilters() {
     setStatusFilter('ALL');
     setSourceFilter('ALL');
     setPaymentStatusFilter('ALL');
     setPaymentMethodFilter('ALL');
+    setDeliveryStaffFilter('ALL');
     setFromDate('');
     setToDate('');
     setOrderNumber('');
@@ -359,6 +411,20 @@ export default function AdminOrders() {
               </select>
             </div>
 
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Delivered By</label>
+              <select
+                value={deliveryStaffFilter}
+                onChange={(e) => setDeliveryStaffFilter(e.target.value)}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs cursor-pointer font-semibold"
+              >
+                <option value="ALL">All Delivery Staff</option>
+                {deliveryStaffList.map(st => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="col-span-2 sm:col-span-4 lg:col-span-6 flex justify-end gap-2 pt-1">
               <button
                 type="button"
@@ -426,6 +492,11 @@ export default function AdminOrders() {
                         {ord.sub_area_name || 'Walk-in'}, {ord.area_name || 'Store'}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate">{ord.delivery_address}</div>
+                      {ord.delivery_staff_name && (
+                        <div className="text-[10px] text-indigo-700 font-bold truncate mt-0.5">
+                          Delivered By: {ord.delivery_staff_name}
+                        </div>
+                      )}
                     </td>
 
                     <td className="p-3.5 font-black text-slate-950 text-sm">
@@ -491,11 +562,12 @@ export default function AdminOrders() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 rounded-lg cursor-pointer"
+                  onClick={() => setShowBillPrintModal(true)}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl cursor-pointer flex items-center gap-1.5 shadow-xs"
                   title="Print Bill"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>PRINT BILL</span>
                 </button>
                 <button
                   onClick={() => setSelectedOrder(null)}
@@ -518,6 +590,88 @@ export default function AdminOrders() {
                 </div>
               </div>
             ) : null}
+
+            {/* Order & Delivery Assignment Overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-[11px]">
+              <div>
+                <span className="text-slate-400 block font-bold uppercase text-[9px]">Customer:</span>
+                <strong className="text-slate-900">{selectedOrder.order.customer_name}</strong>
+                <span className="text-slate-500 block font-mono">{selectedOrder.order.customer_mobile}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-bold uppercase text-[9px]">Delivery Slot / Zone:</span>
+                <strong className="text-slate-800">{selectedOrder.order.slot_name || 'Immediate / Standard'}</strong>
+                <span className="text-slate-500 block truncate">{selectedOrder.order.sub_area_name || ''}, {selectedOrder.order.area_name || ''}</span>
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <span className="text-slate-400 block font-bold uppercase text-[9px]">Delivered By:</span>
+                <strong className="text-indigo-900 text-xs">
+                  {selectedOrder.order.delivery_staff_name || 'Not assigned'}
+                </strong>
+                {selectedOrder.order.delivery_staff_mobile && (
+                  <span className="text-slate-500 block font-mono">{selectedOrder.order.delivery_staff_mobile}</span>
+                )}
+              </div>
+            </div>
+
+            {/* COD Cash Collection Tracking */}
+            {selectedOrder.order.payment_method === 'COD' && (
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl text-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-amber-950 flex items-center gap-1.5">
+                    <Banknote className="w-4 h-4 text-amber-700" />
+                    <span>COD Cash Collection Tracking</span>
+                  </h4>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    selectedOrder.order.payment_status === 'COD_SETTLED'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : selectedOrder.order.payment_status === 'COD_COLLECTED'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {selectedOrder.order.payment_status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-700 bg-white/70 p-2.5 rounded-xl border border-amber-100">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Payment Method:</span>
+                    <strong>COD</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Cash Amount:</span>
+                    <strong>₹{selectedOrder.order.grand_total}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Collected By:</span>
+                    <strong>{selectedOrder.order.delivery_staff_name || 'Delivery Staff'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Settlement State:</span>
+                    <strong className={selectedOrder.order.payment_status === 'COD_SETTLED' ? 'text-emerald-700' : 'text-amber-800'}>
+                      {selectedOrder.order.payment_status === 'COD_SETTLED' ? 'Settled to Store' : 'Pending Settlement'}
+                    </strong>
+                  </div>
+                </div>
+
+                {selectedOrder.order.payment_status === 'COD_COLLECTED' && (
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-amber-800">
+                      Cash collected by staff from customer. Handover pending store vault settlement.
+                    </span>
+                    <button
+                      type="button"
+                      disabled={settlingCod}
+                      onClick={() => handleSettleCod(selectedOrder.order.id)}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>{settlingCod ? 'Settling...' : 'Settle to Store'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Items in Order */}
             <div className="space-y-2">
@@ -567,11 +721,30 @@ export default function AdminOrders() {
                   <span>Update Order Lifecycle Status</span>
                 </h4>
 
+                {/* Delivered By Dropdown when assigning delivery */}
+                <div className="p-2.5 bg-white border border-indigo-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-indigo-900 block">
+                    Delivered By (Required for OUT_FOR_DELIVERY):
+                  </label>
+                  <select
+                    value={assignDeliveryStaffId}
+                    onChange={(e) => setAssignDeliveryStaffId(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    <option value="">[ Select Delivery Staff ▼ ]</option>
+                    {deliveryStaffList.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name} {st.mobile ? `(${st.mobile})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <input
                   type="text"
                   value={statusUpdateNote}
                   onChange={(e) => setStatusUpdateNote(e.target.value)}
-                  placeholder="Optional audit note (e.g. Dispatched with driver Ramesh)"
+                  placeholder="Optional audit note (e.g. Dispatched with driver Rahul)"
                   className="w-full p-2 bg-white border border-indigo-200 rounded-xl text-xs"
                 />
 
@@ -598,25 +771,60 @@ export default function AdminOrders() {
               </div>
             )}
 
-            {/* Status History Audit Trail */}
-            <div className="space-y-1.5">
-              <h4 className="font-bold text-slate-900">Audit Status History</h4>
-              <div className="space-y-1 text-[11px]">
-                {selectedOrder.history?.map((h) => (
-                  <div key={h.id} className="p-2 bg-slate-50 rounded-lg flex items-center justify-between text-slate-600">
-                    <div>
-                      <strong className="text-slate-800">{h.new_status}</strong>
-                      <span className="text-slate-400 ml-1.5">by {h.changed_by_name || 'System'}</span>
-                      {h.notes && <span className="text-slate-500 italic ml-2">"{h.notes}"</span>}
+            {/* Complete Order History (Formatted according to specs) */}
+            <div className="space-y-2">
+              <h4 className="font-bold text-slate-900 text-sm">Order History</h4>
+              <div className="space-y-2 text-xs">
+                {selectedOrder.history?.map((h) => {
+                  const fromSt = h.old_status || h.previous_status;
+                  const toSt = h.new_status;
+                  const d = h.created_at ? new Date(h.created_at) : new Date();
+                  const formattedDate = `${String(d.getDate()).padStart(2, '0')} ${d.toLocaleString('en-US', { month: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+                  return (
+                    <div key={h.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                      <div className="text-[11px] font-mono font-bold text-slate-500">
+                        {formattedDate}
+                      </div>
+                      <div className="font-black text-slate-900 text-xs flex items-center gap-1.5">
+                        {fromSt ? (
+                          <>
+                            <span>{fromSt}</span>
+                            <span className="text-emerald-600">→</span>
+                            <span className="text-emerald-700">{toSt}</span>
+                          </>
+                        ) : (
+                          <span className="text-emerald-700">{toSt} (Order Created)</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-600">
+                        {toSt === 'OUT_FOR_DELIVERY' && selectedOrder.order.delivery_staff_name ? (
+                          <span>Delivered By: <strong className="text-slate-900">{selectedOrder.order.delivery_staff_name}</strong></span>
+                        ) : (
+                          <span>By: <strong className="text-slate-900">{h.changed_by_name || 'Admin'}</strong></span>
+                        )}
+                      </div>
+                      {h.notes && !h.notes.startsWith('Status changed to') && h.notes !== 'Order created' && (
+                        <div className="text-[10px] text-slate-500 italic">
+                          "{h.notes}"
+                        </div>
+                      )}
                     </div>
-                    <span className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleString()}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
           </div>
         </div>
+      )}
+
+      {/* Instant Bill Print Modal */}
+      {showBillPrintModal && selectedOrder && (
+        <PrintBillModal
+          orderData={selectedOrder}
+          onClose={() => setShowBillPrintModal(false)}
+        />
       )}
 
     </div>

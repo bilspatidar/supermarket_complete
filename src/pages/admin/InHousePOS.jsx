@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import client from '../../api/client.js';
+import PrintBillModal from '../../components/common/PrintBillModal.jsx';
 
 export default function InHousePOS() {
   const [products, setProducts] = useState([]);
@@ -47,6 +48,7 @@ export default function InHousePOS() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -194,6 +196,7 @@ export default function InHousePOS() {
 
       if (res.success && res.data) {
         setLastOrder(res.data);
+        setShowPrintModal(true); // Instant Bill Print Modal opens immediately after order saved
         setPosItems([]);
         setAppliedCoupon('');
         setCouponCode('');
@@ -493,18 +496,19 @@ export default function InHousePOS() {
 
           {/* Last Order Receipt preview */}
           {lastOrder && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1.5 text-emerald-950 animate-fade-in">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2 text-emerald-950 animate-fade-in">
               <div className="flex items-center justify-between font-bold">
                 <span className="flex items-center gap-1">
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  Bill Generated #{lastOrder.orderNumber}
+                  Bill Saved #{lastOrder.orderNumber}
                 </span>
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  onClick={() => setShowPrintModal(true)}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
-                  <Printer className="w-3 h-3" /> Print
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>PRINT BILL</span>
                 </button>
               </div>
               <p className="text-[11px] text-emerald-800">
@@ -600,6 +604,19 @@ export default function InHousePOS() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Instant Bill Print Modal */}
+      {showPrintModal && lastOrder && (
+        <PrintBillModal
+          orderData={{
+            ...lastOrder,
+            customerName: selectedCustomerObj?.name || 'Walk-in Shopper',
+            customerMobile: selectedCustomerObj?.mobile || '—',
+            paymentMethod,
+          }}
+          onClose={() => setShowPrintModal(false)}
+        />
       )}
 
     </div>

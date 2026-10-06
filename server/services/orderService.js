@@ -44,7 +44,9 @@ class OrderService {
 
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
     const initialOrderStatus = paymentMethod === 'COD' || source === 'IN_HOUSE' ? 'CONFIRMED' : 'PENDING';
-    const initialPaymentStatus = source === 'IN_HOUSE' && paymentMethod === 'CASH' ? 'PAID' : 'PENDING';
+    const initialPaymentStatus = paymentMethod === 'COD'
+      ? 'COD_PENDING_COLLECTION'
+      : (source === 'IN_HOUSE' && (paymentMethod === 'CASH' || paymentMethod === 'CARD' || paymentMethod === 'UPI') ? 'PAID' : 'PENDING');
 
     // 3. Atomic Database Transaction
     const result = await db.transaction(async (tx) => {
@@ -173,8 +175,10 @@ class OrderService {
 
       // Record Status History
       await tx.run(
-        `INSERT INTO order_status_history (order_id, previous_status, new_status, changed_by, notes)
-         VALUES (?, NULL, ?, ?, 'Order created')`,
+        `INSERT INTO order_status_history (
+          order_id, previous_status, old_status, new_status,
+          changed_by, changed_by_role, notes, note
+        ) VALUES (?, NULL, NULL, ?, ?, 'System', 'Order created', 'Order created')`,
         [orderId, initialOrderStatus, createdBy || userId]
       );
 
@@ -267,10 +271,32 @@ class OrderService {
         orderId,
       });
 
-      // 2. Admin WhatsApp Notification
-      const adminSetting = await db.get("SELECT value FROM store_settings WHERE key = 'admin_whatsapp_number'");
-      const adminPhone = adminSetting?.value;
-      if (adminPhone) {
+      // 2. Admin WhatsApp Notifications (to all active configured recipient numbers)
+      const adminPhones = new Set();
+      const recipientsSetting = await db.get("SELECT value FROM store_settings WHERE key = 'order_notification_recipients'");
+      if (recipientsSetting?.value) {
+        try {
+          const parsed = JSON.parse(recipientsSetting.value);
+          if (Array.isArray(parsed)) {
+            parsed
+              .filter(r => r.active !== false && r.mobile)
+              .forEach(r => adminPhones.add(String(r.mobile).replace(/[^0-9]/g, '')));
+          }
+        } catch (e) {
+          console.warn('[OrderService] Could not parse order_notification_recipients:', e.message);
+        }
+      }
+
+      // Fallback to legacy single admin number if no list is configured
+      if (adminPhones.size === 0) {
+        const legacyAdminSetting = await db.get("SELECT value FROM store_settings WHERE key = 'admin_whatsapp_number'");
+        if (legacyAdminSetting?.value) {
+          adminPhones.add(String(legacyAdminSetting.value).replace(/[^0-9]/g, ''));
+        }
+      }
+
+      for (const adminPhone of adminPhones) {
+        if (!adminPhone) continue;
         await whatsAppService.send({
           recipient: adminPhone,
           templateKey: 'admin.new_order',
@@ -292,9 +318,9 @@ class OrderService {
   }
 
   /**
-   * Update Order Status & Enforce DELIVERED LOCK
+   * Update Order Status & Enforce DELIVERED LOCK & Status Transition Rules
    */
-  async updateOrderStatus(orderId, newStatus, changedBy = null, notes = '') {
+  async updateOrderStatus(orderId, newStatus, changedBy = null, notes = '', deliveryStaffId = null, changedByRole = null) {
     const order = await db.get('SELECT * FROM orders WHERE id = ?', [orderId]);
     if (!order) {
       throw new Error('Order not found');
@@ -307,6 +333,54 @@ class OrderService {
 
     const previousStatus = order.order_status;
     if (previousStatus === newStatus) return order;
+
+    // Strict Status Transition Rules
+    const VALID_TRANSITIONS = {
+      PENDING: ['CONFIRMED', 'CANCELLED'],
+      CONFIRMED: ['PROCESSING', 'CANCELLED'],
+      PROCESSING: ['READY', 'OUT_FOR_DELIVERY', 'CANCELLED'],
+      READY: ['OUT_FOR_DELIVERY', 'CANCELLED'],
+      OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED', 'CANCELLED'],
+      DELIVERED: [], // Immutable locked
+      CANCELLED: [],
+      RETURNED: [],
+    };
+
+    const allowed = VALID_TRANSITIONS[previousStatus] || [];
+    if (!allowed.includes(newStatus)) {
+      throw new Error(
+        `Invalid status transition from "${previousStatus}" to "${newStatus}". Allowed next status: ${
+          allowed.length > 0 ? allowed.join(', ') : 'None (Terminal state)'
+        }`
+      );
+    }
+
+    // Resolve changed_by_role
+    let role = changedByRole;
+    if (!role && changedBy) {
+      const u = await db.get(
+        `SELECT u.account_type, r.name as role_name 
+         FROM users u 
+         LEFT JOIN user_roles ur ON u.id = ur.user_id 
+         LEFT JOIN roles r ON ur.role_id = r.id 
+         WHERE u.id = ? LIMIT 1`,
+        [changedBy]
+      );
+      role = u?.role_name || (u?.account_type === 'INTERNAL' ? 'Staff' : 'Customer') || 'Admin';
+    }
+
+    // Handle delivery staff assignment
+    let finalDeliveryStaffId = order.delivery_staff_id;
+    let finalNote = notes || '';
+    if (newStatus === 'OUT_FOR_DELIVERY' && deliveryStaffId) {
+      finalDeliveryStaffId = Number(deliveryStaffId);
+      const delUser = await db.get('SELECT name FROM users WHERE id = ?', [finalDeliveryStaffId]);
+      if (delUser) {
+        finalNote = finalNote
+          ? `${finalNote} (Delivered By: ${delUser.name})`
+          : `Delivered By: ${delUser.name}`;
+      }
+    }
 
     // Handle DELIVERED transition: LOCK THE ORDER!
     let deliveredAt = order.delivered_at;
@@ -322,17 +396,34 @@ class OrderService {
       // Update order
       await tx.run(
         `UPDATE orders 
-         SET order_status = ?, delivered_at = ?, locked_at = ?, updated_at = CURRENT_TIMESTAMP
+         SET order_status = ?, delivered_at = ?, locked_at = ?, delivery_staff_id = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [newStatus, deliveredAt, lockedAt, orderId]
+        [newStatus, deliveredAt, lockedAt, finalDeliveryStaffId, orderId]
       );
 
-      // Record in status history
+      // Record in status history with complete audit details
       await tx.run(
-        `INSERT INTO order_status_history (order_id, previous_status, new_status, changed_by, notes)
-         VALUES (?, ?, ?, ?, ?)`,
-        [orderId, previousStatus, newStatus, changedBy, notes]
+        `INSERT INTO order_status_history (
+          order_id, previous_status, old_status, new_status,
+          changed_by, changed_by_role, notes, note
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderId, previousStatus, previousStatus, newStatus, changedBy, role || 'Admin', finalNote, finalNote]
       );
+
+      // Track COD collection upon delivery
+      if (newStatus === 'DELIVERED' && order.payment_method === 'COD') {
+        const collectorId = finalDeliveryStaffId || changedBy;
+        await tx.run(
+          `UPDATE payments 
+           SET status = 'COD_COLLECTED', collected_by = ?, collected_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+           WHERE order_id = ?`,
+          [collectorId, orderId]
+        );
+        await tx.run(
+          `UPDATE orders SET payment_status = 'COD_COLLECTED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [orderId]
+        );
+      }
 
       // Handle CANCELLED: Restore inventory & reverse welcome bonus
       if (newStatus === 'CANCELLED') {

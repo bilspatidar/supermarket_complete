@@ -25,6 +25,7 @@ import settingsController from '../controllers/settingsController.js';
 import reportController from '../controllers/reportController.js';
 import cmsController from '../controllers/cmsController.js';
 import staffController from '../controllers/staffController.js';
+import roleController from '../controllers/roleController.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -235,6 +236,13 @@ router.put(
   requirePermission('orders.update'),
   orderController.updateOrderStatus
 );
+router.put(
+  '/orders/:id/settle-cod',
+  authenticate,
+  requireInternal,
+  requirePermission('orders.update'),
+  orderController.settleCodPayment
+);
 
 // -------------------------------------------------------------
 // 7. Inventory
@@ -435,11 +443,24 @@ router.put(
   requirePermission('staff.update'),
   staffController.updateStaffRole
 );
+router.get(
+  '/staff/delivery-staff',
+  authenticate,
+  requireInternal,
+  staffController.getDeliveryStaff
+);
 
 // -------------------------------------------------------------
-// 16. CMS
+// 16. CMS (Home Sliders & Dynamic Pages)
 // -------------------------------------------------------------
 router.get('/cms/sliders', cmsController.getSliders);
+router.get(
+  '/cms/sliders/admin',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.view'),
+  cmsController.getAdminSliders
+);
 router.post(
   '/cms/sliders',
   authenticate,
@@ -447,14 +468,97 @@ router.post(
   requirePermission('settings.update'),
   cmsController.createSlider
 );
+router.put(
+  '/cms/sliders/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.updateSlider
+);
+router.delete(
+  '/cms/sliders/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.deleteSlider
+);
+
 router.get('/cms/pages', cmsController.getPages);
+router.get(
+  '/cms/pages/admin',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.view'),
+  cmsController.getAdminPages
+);
 router.get('/cms/pages/:slug', cmsController.getPageBySlug);
+router.post(
+  '/cms/pages',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.createPage
+);
 router.put(
   '/cms/pages/:id',
   authenticate,
   requireInternal,
   requirePermission('settings.update'),
   cmsController.updatePage
+);
+router.delete(
+  '/cms/pages/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.deletePage
+);
+
+// -------------------------------------------------------------
+// 17. Roles & Permissions CRUD + Assignment
+// -------------------------------------------------------------
+router.get(
+  '/roles',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.view'),
+  roleController.getRoles
+);
+router.get(
+  '/permissions',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.view'),
+  roleController.getPermissions
+);
+router.post(
+  '/roles',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.create'),
+  roleController.createRole
+);
+router.put(
+  '/roles/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.update'),
+  roleController.updateRole
+);
+router.put(
+  '/roles/:id/status',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.update'),
+  roleController.toggleRoleStatus
+);
+router.delete(
+  '/roles/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('roles.delete'),
+  verifyCurrentPassword,
+  roleController.deleteRole
 );
 
 export default router;

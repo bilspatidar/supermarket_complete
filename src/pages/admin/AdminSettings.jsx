@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Save, CheckCircle, ShieldCheck, MapPin, Phone, Mail, Clock, Store } from 'lucide-react';
+import { Settings, Save, CheckCircle, ShieldCheck, MapPin, Phone, Mail, Clock, Store, MessageSquare, Plus, Trash2 } from 'lucide-react';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/common/ImageUploader.jsx';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState({});
+  const [recipients, setRecipients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,6 +24,21 @@ export default function AdminSettings() {
           map[item.key] = item.value;
         });
         setSettings(map);
+
+        // Parse order notification recipients list
+        let list = [];
+        try {
+          if (map.order_notification_recipients) {
+            list = JSON.parse(map.order_notification_recipients);
+          }
+        } catch (e) {}
+
+        if (!Array.isArray(list) || list.length === 0) {
+          list = [
+            { id: '1', mobile: map.admin_whatsapp_number || '919876543210', name: 'Store Admin', active: true },
+          ];
+        }
+        setRecipients(list);
       }
     } catch (err) {
       console.warn('Settings load error:', err.message);
@@ -35,14 +51,46 @@ export default function AdminSettings() {
     setSettings(prev => ({ ...prev, [key]: val }));
   }
 
+  function handleAddRecipient() {
+    const newId = Date.now().toString();
+    const updated = [
+      ...recipients,
+      { id: newId, mobile: '+91', name: 'Store Staff', active: true },
+    ];
+    setRecipients(updated);
+    handleChange('order_notification_recipients', JSON.stringify(updated));
+  }
+
+  function handleUpdateRecipient(id, field, value) {
+    const updated = recipients.map(r => (r.id === id ? { ...r, [field]: value } : r));
+    setRecipients(updated);
+    handleChange('order_notification_recipients', JSON.stringify(updated));
+  }
+
+  function handleToggleRecipient(id) {
+    const updated = recipients.map(r => (r.id === id ? { ...r, active: !r.active } : r));
+    setRecipients(updated);
+    handleChange('order_notification_recipients', JSON.stringify(updated));
+  }
+
+  function handleDeleteRecipient(id) {
+    const updated = recipients.filter(r => r.id !== id);
+    setRecipients(updated);
+    handleChange('order_notification_recipients', JSON.stringify(updated));
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
     setMessage('');
     try {
-      const res = await client.put('/settings', { settings });
+      const payload = {
+        ...settings,
+        order_notification_recipients: JSON.stringify(recipients),
+      };
+      const res = await client.put('/settings', { settings: payload });
       if (res.success) {
-        setMessage('Store settings and contact configuration updated successfully.');
+        setMessage('Store settings and order notification recipients updated successfully.');
       }
     } catch (err) {
       alert(`Save error: ${err.message}`);
@@ -224,6 +272,97 @@ export default function AdminSettings() {
                 Embed URL from Google Maps (Share &gt; Embed a map &gt; copy src attribute)
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Order WhatsApp Notification Recipients (Multiple Numbers) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>Order Notification Recipients</span>
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Every newly created supermarket order is automatically dispatched via WhatsApp to all active recipient numbers listed below.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddRecipient}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Number</span>
+            </button>
+          </div>
+
+          <div className="space-y-2.5">
+            {recipients.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                No notification recipient numbers configured. Click "+ Add Number" to add.
+              </p>
+            ) : (
+              recipients.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                        Mobile Number
+                      </label>
+                      <input
+                        type="text"
+                        value={rec.mobile}
+                        onChange={(e) => handleUpdateRecipient(rec.id, 'mobile', e.target.value)}
+                        placeholder="+91XXXXXXXXXX"
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono font-bold text-slate-900 text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                        Recipient Label / Name
+                      </label>
+                      <input
+                        type="text"
+                        value={rec.name || ''}
+                        onChange={(e) => handleUpdateRecipient(rec.id, 'name', e.target.value)}
+                        placeholder="e.g. Store Manager, Packaging Desk"
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRecipient(rec.id)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-colors cursor-pointer ${
+                        rec.active
+                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                      title="Click to enable/disable notifications to this number"
+                    >
+                      {rec.active ? 'Active' : 'Disabled'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRecipient(rec.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                      title="Delete number"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

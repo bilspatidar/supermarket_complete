@@ -17,6 +17,7 @@ import {
   Crown,
   Percent,
   RefreshCw,
+  Banknote,
 } from 'lucide-react';
 import client from '../../api/client.js';
 
@@ -34,6 +35,7 @@ export default function AdminReports() {
     { id: 'sales', label: 'Sales', icon: TrendingUp },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'cod', label: 'COD Collections', icon: Banknote },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'categories', label: 'Categories', icon: Layers },
@@ -219,6 +221,56 @@ export default function AdminReports() {
               </strong>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Staff-Wise COD Collection & Settlement Breakdown */}
+      {reportType === 'cod' && reportData?.staffWise && reportData.staffWise.length > 0 && (
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-2xs overflow-hidden">
+          <div className="p-4 bg-amber-50/70 border-b border-amber-200 flex items-center justify-between">
+            <div>
+              <h3 className="font-black text-xs text-amber-950 flex items-center gap-1.5">
+                <Banknote className="w-4 h-4 text-amber-700" />
+                <span>Staff-Wise COD Cash Collections &amp; Settlement Status</span>
+              </h3>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                Breakdown of cash collected from customers by delivery staff and pending handover to store cash vault.
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto text-xs">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-3">Delivery Staff</th>
+                  <th className="p-3">Mobile</th>
+                  <th className="p-3 text-center">Orders Delivered</th>
+                  <th className="p-3 text-right">Pending Settlement</th>
+                  <th className="p-3 text-right">Settled to Store</th>
+                  <th className="p-3 text-right">Total Cash Handled</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                {reportData.staffWise.map((st, i) => (
+                  <tr key={i} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="p-3 font-bold text-slate-900">{st.staff_name}</td>
+                    <td className="p-3 font-mono text-slate-500">{st.staff_mobile || '—'}</td>
+                    <td className="p-3 text-center font-bold">{st.collections_count}</td>
+                    <td className="p-3 text-right font-black text-amber-800">
+                      ₹{st.pending_settlement_amount}
+                    </td>
+                    <td className="p-3 text-right font-black text-emerald-800">
+                      ₹{st.settled_amount}
+                    </td>
+                    <td className="p-3 text-right font-black text-slate-900">
+                      ₹{st.total_collected_amount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -194,6 +194,12 @@ function buildOrdersWhereClause(query, reqUser) {
     args.push(query.subAreaId);
   }
 
+  // 12. Delivered By / Delivery Staff Filter
+  if (query.deliveryStaffId && query.deliveryStaffId !== 'ALL') {
+    conditions.push('o.delivery_staff_id = ?');
+    args.push(Number(query.deliveryStaffId));
+  }
+
   // General Search Filter
   if (query.search && query.search.trim()) {
     const q = `%${query.search.trim()}%`;
@@ -222,12 +228,14 @@ export async function getOrders(req, res) {
 
     const orders = await db.query(
       `SELECT o.*, u.name as customer_name, u.mobile as customer_mobile,
-              da.name as area_name, dsa.name as sub_area_name, ds.name as slot_name
+              da.name as area_name, dsa.name as sub_area_name, ds.name as slot_name,
+              staff.name as delivery_staff_name, staff.mobile as delivery_staff_mobile
        FROM orders o
        JOIN users u ON o.user_id = u.id
        LEFT JOIN delivery_areas da ON o.area_id = da.id
        LEFT JOIN delivery_sub_areas dsa ON o.sub_area_id = dsa.id
        LEFT JOIN delivery_slots ds ON o.delivery_slot_id = ds.id
+       LEFT JOIN users staff ON o.delivery_staff_id = staff.id
        ${whereClause}
        ORDER BY o.id DESC
        LIMIT ? OFFSET ?`,
@@ -322,12 +330,14 @@ export async function getOrderById(req, res) {
     const { id } = req.params;
     const order = await db.get(
       `SELECT o.*, u.name as customer_name, u.mobile as customer_mobile, u.email as customer_email,
-              da.name as area_name, dsa.name as sub_area_name, ds.name as slot_name
+              da.name as area_name, dsa.name as sub_area_name, ds.name as slot_name,
+              staff.name as delivery_staff_name, staff.mobile as delivery_staff_mobile
        FROM orders o
        JOIN users u ON o.user_id = u.id
        LEFT JOIN delivery_areas da ON o.area_id = da.id
        LEFT JOIN delivery_sub_areas dsa ON o.sub_area_id = dsa.id
        LEFT JOIN delivery_slots ds ON o.delivery_slot_id = ds.id
+       LEFT JOIN users staff ON o.delivery_staff_id = staff.id
        WHERE o.id = ? OR o.order_number = ?`,
       [id, id]
     );
@@ -360,7 +370,12 @@ export async function getOrderById(req, res) {
     );
 
     const payments = await db.query(
-      'SELECT * FROM payments WHERE order_id = ? ORDER BY id DESC',
+      `SELECT p.*, uColl.name as collected_by_name, uSett.name as settled_by_name
+       FROM payments p
+       LEFT JOIN users uColl ON p.collected_by = uColl.id
+       LEFT JOIN users uSett ON p.settled_by = uSett.id
+       WHERE p.order_id = ? 
+       ORDER BY p.id DESC`,
       [order.id]
     );
 
@@ -381,7 +396,7 @@ export async function getOrderById(req, res) {
 export async function updateOrderStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, delivery_staff_id, deliveryStaffId } = req.body;
 
     if (!status) {
       return res.status(400).json({ success: false, message: 'Status is required' });
@@ -400,11 +415,75 @@ export async function updateOrderStatus(req, res) {
       });
     }
 
-    const updated = await orderService.updateOrderStatus(id, status, req.user.id, notes);
+    const assignedStaffId = delivery_staff_id || deliveryStaffId || null;
+    const updated = await orderService.updateOrderStatus(id, status, req.user.id, notes, assignedStaffId);
     return res.json({
       success: true,
       message: `Order status updated to ${status}`,
       data: updated,
+    });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+export async function settleCodPayment(req, res) {
+  try {
+    const { id } = req.params;
+    const { settlementRef, settlementNote } = req.body;
+
+    const order = await db.get('SELECT * FROM orders WHERE id = ?', [id]);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.payment_method !== 'COD') {
+      return res.status(400).json({ success: false, message: 'Only COD orders require cash collection settlement' });
+    }
+
+    const payment = await db.get('SELECT * FROM payments WHERE order_id = ?', [id]);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found for this order' });
+    }
+
+    if (payment.status === 'COD_SETTLED') {
+      return res.status(400).json({ success: false, message: 'Cash collection is already settled to store' });
+    }
+
+    const ref = settlementRef || `SETTLE-${Date.now()}`;
+    const note = settlementNote || 'Settled to store cash vault by admin';
+
+    await db.transaction(async (tx) => {
+      await tx.run(
+        `UPDATE payments 
+         SET status = 'COD_SETTLED', settled_by = ?, settled_at = CURRENT_TIMESTAMP,
+             settlement_ref = ?, settlement_note = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [req.user.id, ref, note, payment.id]
+      );
+
+      await tx.run(
+        `UPDATE orders SET payment_status = 'COD_SETTLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [id]
+      );
+
+      // Audit log
+      await tx.run(
+        `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values, ip_address, notes)
+         VALUES (?, 'COD_SETTLED', 'PAYMENT', ?, ?, ?, ?)`,
+        [
+          req.user.id,
+          String(payment.id),
+          JSON.stringify({ amount: payment.amount, orderId: id, settlementRef: ref }),
+          req.ip || '127.0.0.1',
+          `COD cash collection ₹${payment.amount} settled to store for Order #${order.order_number}`,
+        ]
+      );
+    });
+
+    return res.json({
+      success: true,
+      message: `COD cash ₹${payment.amount} successfully settled to store!`,
     });
   } catch (err) {
     return res.status(400).json({ success: false, message: err.message });
@@ -499,4 +578,5 @@ export default {
   getCustomerOrders,
   getCustomerOrderById,
   updateOrderStatus,
+  settleCodPayment,
 };

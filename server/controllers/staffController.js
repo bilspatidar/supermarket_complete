@@ -81,8 +81,34 @@ export async function updateStaffRole(req, res) {
   }
 }
 
+export async function getDeliveryStaff(req, res) {
+  try {
+    const staff = await db.query(`
+      SELECT DISTINCT u.id, u.name, u.mobile, u.email
+      FROM users u
+      JOIN user_roles ur ON u.id = ur.user_id
+      JOIN roles r ON ur.role_id = r.id
+      WHERE u.account_type = 'INTERNAL'
+        AND u.status = 'ACTIVE'
+        AND (
+          r.name IN ('DELIVERY_STAFF', 'STORE_MANAGER', 'SUPER_ADMIN')
+          OR r.id IN (
+            SELECT rp.role_id FROM role_permissions rp
+            JOIN permissions p ON rp.permission_id = p.id
+            WHERE p.name IN ('orders.update', 'orders.view', 'delivery.view')
+          )
+        )
+      ORDER BY u.name ASC
+    `);
+    return res.json({ success: true, data: staff });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 export default {
   getStaffList,
+  getDeliveryStaff,
   createStaff,
   updateStaffRole,
 };

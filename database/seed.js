@@ -65,6 +65,14 @@ export async function runSeeder() {
     { name: 'staff.create', group: 'Staff', desc: 'Create staff accounts' },
     { name: 'staff.update', group: 'Staff', desc: 'Update staff permissions' },
     { name: 'staff.delete', group: 'Staff', desc: 'Delete staff accounts' },
+    { name: 'roles.view', group: 'Roles', desc: 'View roles and permission assignments' },
+    { name: 'roles.create', group: 'Roles', desc: 'Create custom internal roles' },
+    { name: 'roles.update', group: 'Roles', desc: 'Modify role permissions and settings' },
+    { name: 'roles.delete', group: 'Roles', desc: 'Delete unassigned roles' },
+    { name: 'cms.view', group: 'CMS', desc: 'View home sliders and static pages' },
+    { name: 'cms.create', group: 'CMS', desc: 'Create home sliders and static pages' },
+    { name: 'cms.update', group: 'CMS', desc: 'Update home sliders and static pages' },
+    { name: 'cms.delete', group: 'CMS', desc: 'Delete home sliders and static pages' },
     { name: 'audit.view', group: 'Audit', desc: 'View system audit logs' },
   ];
 
