@@ -1,6 +1,12 @@
 import express from 'express';
 import multer from 'multer';
-import { authenticate, optionalAuthenticate } from '../middlewares/authMiddleware.js';
+import {
+  authenticate,
+  optionalAuthenticate,
+  requireCustomer,
+  requireInternal,
+  verifyCurrentPassword,
+} from '../middlewares/authMiddleware.js';
 import { requirePermission } from '../middlewares/permissionMiddleware.js';
 
 import authController from '../controllers/authController.js';
@@ -23,102 +29,432 @@ import staffController from '../controllers/staffController.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// 1. Authentication
+// -------------------------------------------------------------
+// 1. Authentication & Profile
+// -------------------------------------------------------------
 router.post('/auth/login', authController.login);
 router.post('/auth/otp/request', authController.requestOtp);
 router.post('/auth/otp/verify', authController.verifyOtp);
 router.post('/auth/register', authController.register);
 router.get('/auth/me', authenticate, authController.getMe);
-router.put('/auth/profile', authenticate, authController.updateProfile);
-router.post('/auth/admin/correct-personal-data', authenticate, requirePermission('customers.correct_personal_data'), authController.adminCorrectPersonalData);
+router.put('/auth/profile', authenticate, requireCustomer, authController.updateProfile);
+router.post(
+  '/auth/admin/correct-personal-data',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.correct_personal_data'),
+  authController.adminCorrectPersonalData
+);
 
-// 2. Catalog (Products, Categories, Brands)
+// -------------------------------------------------------------
+// 2. Catalog (Products, Categories, Brands) & Universal Upload
+// -------------------------------------------------------------
 router.get('/products', productController.getProducts);
 router.get('/products/:id', productController.getProductById);
-router.post('/products', authenticate, requirePermission('products.create'), productController.createProduct);
-router.put('/products/:id', authenticate, requirePermission('products.update'), productController.updateProduct);
-router.delete('/products/:id', authenticate, requirePermission('products.delete'), productController.deleteProduct);
-router.post('/products/upload-image', authenticate, upload.single('image'), productController.uploadImage);
+router.post(
+  '/products',
+  authenticate,
+  requireInternal,
+  requirePermission('products.create'),
+  productController.createProduct
+);
+router.put(
+  '/products/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.update'),
+  productController.updateProduct
+);
+router.delete(
+  '/products/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.delete'),
+  verifyCurrentPassword,
+  productController.deleteProduct
+);
+router.post(
+  '/products/bulk-import',
+  authenticate,
+  requireInternal,
+  requirePermission('products.create'),
+  productController.bulkImportProducts
+);
+router.post(
+  '/products/upload-image',
+  authenticate,
+  upload.single('image'),
+  productController.uploadImage
+);
+router.post(
+  '/upload',
+  authenticate,
+  upload.single('image'),
+  productController.uploadImage
+);
 
+// Categories
 router.get('/categories', categoryController.getCategories);
-router.post('/categories', authenticate, requirePermission('products.create'), categoryController.createCategory);
-router.put('/categories/:id', authenticate, requirePermission('products.update'), categoryController.updateCategory);
+router.post(
+  '/categories',
+  authenticate,
+  requireInternal,
+  requirePermission('products.create'),
+  categoryController.createCategory
+);
+router.put(
+  '/categories/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.update'),
+  categoryController.updateCategory
+);
+router.put(
+  '/categories/:id/status',
+  authenticate,
+  requireInternal,
+  requirePermission('products.update'),
+  categoryController.toggleCategoryStatus
+);
+router.delete(
+  '/categories/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.delete'),
+  verifyCurrentPassword,
+  categoryController.deleteCategory
+);
 
+// Brands
 router.get('/brands', categoryController.getBrands);
-router.post('/brands', authenticate, requirePermission('products.create'), categoryController.createBrand);
+router.post(
+  '/brands',
+  authenticate,
+  requireInternal,
+  requirePermission('products.create'),
+  categoryController.createBrand
+);
+router.put(
+  '/brands/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.update'),
+  categoryController.updateBrand
+);
+router.put(
+  '/brands/:id/status',
+  authenticate,
+  requireInternal,
+  requirePermission('products.update'),
+  categoryController.toggleBrandStatus
+);
+router.delete(
+  '/brands/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('products.delete'),
+  verifyCurrentPassword,
+  categoryController.deleteBrand
+);
 
-// 3. Cart
+// -------------------------------------------------------------
+// 3. Cart (Guest + Customer)
+// -------------------------------------------------------------
 router.get('/cart', optionalAuthenticate, cartController.getCart);
 router.post('/cart/add', optionalAuthenticate, cartController.addToCart);
 router.put('/cart/update', optionalAuthenticate, cartController.updateQuantity);
-router.post('/cart/merge', authenticate, cartController.mergeCart);
+router.post('/cart/merge', authenticate, requireCustomer, cartController.mergeCart);
 
+// -------------------------------------------------------------
 // 4. Delivery Areas & Slots
+// -------------------------------------------------------------
 router.get('/delivery/zones', deliveryController.getDeliveryZones);
 router.post('/delivery/validate', deliveryController.validateEligibility);
-router.post('/delivery/areas', authenticate, requirePermission('delivery.create'), deliveryController.createArea);
-router.post('/delivery/sub-areas', authenticate, requirePermission('delivery.create'), deliveryController.createSubArea);
+router.post(
+  '/delivery/areas',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.create'),
+  deliveryController.createArea
+);
+router.post(
+  '/delivery/sub-areas',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.create'),
+  deliveryController.createSubArea
+);
 
-// 5. Customer Addresses
-router.get('/addresses', authenticate, customerController.getAddresses);
-router.post('/addresses', authenticate, customerController.createAddress);
-router.delete('/addresses/:id', authenticate, customerController.deleteAddress);
-router.put('/addresses/:id/default', authenticate, customerController.setDefaultAddress);
+// -------------------------------------------------------------
+// 5. Customer Addresses (Customer-Only)
+// -------------------------------------------------------------
+router.get('/addresses', authenticate, requireCustomer, customerController.getAddresses);
+router.post('/addresses', authenticate, requireCustomer, customerController.createAddress);
+router.delete('/addresses/:id', authenticate, requireCustomer, customerController.deleteAddress);
+router.put('/addresses/:id/default', authenticate, requireCustomer, customerController.setDefaultAddress);
 
+// -------------------------------------------------------------
 // 6. Orders & Pricing Engine
+// -------------------------------------------------------------
 router.post('/orders/calculate', optionalAuthenticate, orderController.calculateOrderPricing);
+
+// Customer-only Order APIs
+router.get('/customer/orders', authenticate, requireCustomer, orderController.getCustomerOrders);
+router.get('/customer/orders/:id', authenticate, requireCustomer, orderController.getCustomerOrderById);
+router.post('/customer/orders', authenticate, requireCustomer, orderController.createCustomerOrder);
+
+// Universal Order Creation (enforces source=ONLINE for customer, IN_HOUSE for staff)
 router.post('/orders', authenticate, orderController.createOrder);
-router.get('/orders', authenticate, orderController.getOrders);
-router.get('/orders/:id', authenticate, orderController.getOrderById);
-router.put('/orders/:id/status', authenticate, requirePermission('orders.update'), orderController.updateOrderStatus);
 
+// Internal Admin/Staff-only Order APIs
+router.get(
+  '/orders',
+  authenticate,
+  requireInternal,
+  requirePermission('orders.view'),
+  orderController.getOrders
+);
+router.get(
+  '/orders/export',
+  authenticate,
+  requireInternal,
+  requirePermission('orders.view'),
+  orderController.exportOrders
+);
+router.get(
+  '/orders/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('orders.view'),
+  orderController.getOrderById
+);
+router.put(
+  '/orders/:id/status',
+  authenticate,
+  requireInternal,
+  requirePermission('orders.update'),
+  orderController.updateOrderStatus
+);
+
+// -------------------------------------------------------------
 // 7. Inventory
-router.get('/inventory/transactions', authenticate, requirePermission('inventory.view'), inventoryController.getTransactions);
-router.post('/inventory/adjust', authenticate, requirePermission('inventory.adjust'), inventoryController.adjustInventory);
+// -------------------------------------------------------------
+router.get(
+  '/inventory/transactions',
+  authenticate,
+  requireInternal,
+  requirePermission('inventory.view'),
+  inventoryController.getTransactions
+);
+router.post(
+  '/inventory/adjust',
+  authenticate,
+  requireInternal,
+  requirePermission('inventory.adjust'),
+  inventoryController.adjustInventory
+);
 
+// -------------------------------------------------------------
 // 8. Membership
+// -------------------------------------------------------------
 router.get('/membership/plans', membershipController.getPlans);
-router.get('/membership/my-status', authenticate, membershipController.getMyMembership);
-router.post('/membership/subscribe', authenticate, membershipController.subscribePlan);
-router.post('/membership/plans', authenticate, requirePermission('membership.create'), membershipController.createPlan);
+router.get('/membership/my-status', authenticate, requireCustomer, membershipController.getMyMembership);
+router.post('/membership/subscribe', authenticate, requireCustomer, membershipController.subscribePlan);
+router.post(
+  '/membership/plans',
+  authenticate,
+  requireInternal,
+  requirePermission('membership.create'),
+  membershipController.createPlan
+);
 
+// -------------------------------------------------------------
 // 9. Coupons
+// -------------------------------------------------------------
 router.get('/coupons', optionalAuthenticate, couponController.getCoupons);
-router.post('/coupons', authenticate, requirePermission('coupons.create'), couponController.createCoupon);
-router.delete('/coupons/:id', authenticate, requirePermission('coupons.delete'), couponController.deleteCoupon);
+router.post(
+  '/coupons',
+  authenticate,
+  requireInternal,
+  requirePermission('coupons.create'),
+  couponController.createCoupon
+);
+router.delete(
+  '/coupons/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('coupons.delete'),
+  verifyCurrentPassword,
+  couponController.deleteCoupon
+);
 
+// -------------------------------------------------------------
 // 10. Welcome Bonus & Ledger
-router.get('/bonus/ledger', authenticate, bonusController.getBonusLedger);
-router.post('/bonus/admin-adjust', authenticate, requirePermission('customers.update'), bonusController.adminAdjustBonus);
+// -------------------------------------------------------------
+router.get('/bonus/ledger', authenticate, requireCustomer, bonusController.getBonusLedger);
+router.post(
+  '/bonus/admin-adjust',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.update'),
+  bonusController.adminAdjustBonus
+);
 
+// -------------------------------------------------------------
 // 11. Payments
-router.post('/payments/razorpay/verify', authenticate, paymentController.verifyRazorpayPayment);
+// -------------------------------------------------------------
+router.post('/payments/razorpay/verify', authenticate, requireCustomer, paymentController.verifyRazorpayPayment);
 router.post('/payments/razorpay/webhook', paymentController.handleRazorpayWebhook);
 
+// -------------------------------------------------------------
 // 12. Settings
+// -------------------------------------------------------------
 router.get('/settings', settingsController.getPublicSettings);
-router.get('/settings/admin', authenticate, requirePermission('settings.view'), settingsController.getAllSettings);
-router.put('/settings', authenticate, requirePermission('settings.update'), settingsController.updateSettings);
+router.get(
+  '/settings/admin',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.view'),
+  settingsController.getAllSettings
+);
+router.put(
+  '/settings',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  settingsController.updateSettings
+);
 
-// 13. Reports, Audit, & Logs
-router.get('/reports/dashboard', authenticate, requirePermission('dashboard.view'), reportController.getDashboardStats);
-router.get('/reports/customers/:id', authenticate, requirePermission('customers.view'), reportController.getCustomerStats);
-router.get('/audit/logs', authenticate, requirePermission('audit.view'), reportController.getAuditLogs);
-router.get('/notifications/logs', authenticate, requirePermission('dashboard.view'), reportController.getNotificationLogs);
+// -------------------------------------------------------------
+// 13. Reports, Audit & Export
+// -------------------------------------------------------------
+router.get(
+  '/reports/dashboard',
+  authenticate,
+  requireInternal,
+  requirePermission('dashboard.view'),
+  reportController.getDashboardStats
+);
+router.get(
+  '/reports/detailed',
+  authenticate,
+  requireInternal,
+  requirePermission('reports.view'),
+  reportController.getDetailedReport
+);
+router.get(
+  '/reports/export',
+  authenticate,
+  requireInternal,
+  requirePermission('reports.view'),
+  reportController.exportDetailedReport
+);
+router.get(
+  '/reports/customers/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.view'),
+  reportController.getCustomerStats
+);
+router.get(
+  '/audit/logs',
+  authenticate,
+  requireInternal,
+  requirePermission('audit.view'),
+  reportController.getAuditLogs
+);
+router.get(
+  '/notifications/logs',
+  authenticate,
+  requireInternal,
+  requirePermission('dashboard.view'),
+  reportController.getNotificationLogs
+);
 
-// 14. Customers
-router.get('/customers', authenticate, requirePermission('customers.view'), customerController.getCustomers);
+// -------------------------------------------------------------
+// 14. Customers (Admin view, detail, create, export, safe delete)
+// -------------------------------------------------------------
+router.get(
+  '/customers',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.view'),
+  customerController.getCustomers
+);
+router.get(
+  '/customers/export',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.view'),
+  customerController.exportCustomers
+);
+router.get(
+  '/customers/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.view'),
+  customerController.getCustomerDetail
+);
+router.post(
+  '/customers',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.create'),
+  customerController.createCustomer
+);
+router.delete(
+  '/customers/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('customers.delete'),
+  verifyCurrentPassword,
+  customerController.deleteCustomer
+);
 
+// -------------------------------------------------------------
 // 15. Staff
-router.get('/staff', authenticate, requirePermission('staff.view'), staffController.getStaffList);
-router.post('/staff', authenticate, requirePermission('staff.create'), staffController.createStaff);
-router.put('/staff/:id/roles', authenticate, requirePermission('staff.update'), staffController.updateStaffRole);
+// -------------------------------------------------------------
+router.get(
+  '/staff',
+  authenticate,
+  requireInternal,
+  requirePermission('staff.view'),
+  staffController.getStaffList
+);
+router.post(
+  '/staff',
+  authenticate,
+  requireInternal,
+  requirePermission('staff.create'),
+  staffController.createStaff
+);
+router.put(
+  '/staff/:id/roles',
+  authenticate,
+  requireInternal,
+  requirePermission('staff.update'),
+  staffController.updateStaffRole
+);
 
+// -------------------------------------------------------------
 // 16. CMS
+// -------------------------------------------------------------
 router.get('/cms/sliders', cmsController.getSliders);
-router.post('/cms/sliders', authenticate, requirePermission('settings.update'), cmsController.createSlider);
+router.post(
+  '/cms/sliders',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.createSlider
+);
 router.get('/cms/pages', cmsController.getPages);
 router.get('/cms/pages/:slug', cmsController.getPageBySlug);
-router.put('/cms/pages/:id', authenticate, requirePermission('settings.update'), cmsController.updatePage);
+router.put(
+  '/cms/pages/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('settings.update'),
+  cmsController.updatePage
+);
 
 export default router;

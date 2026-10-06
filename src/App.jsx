@@ -5,6 +5,7 @@ import { DeliveryProvider } from './context/DeliveryContext.jsx';
 
 import Header from './components/common/Header.jsx';
 import Footer from './components/common/Footer.jsx';
+import MobileBottomNav from './components/common/MobileBottomNav.jsx';
 import CartDrawer from './components/store/CartDrawer.jsx';
 import ZonePickerModal from './components/common/ZonePickerModal.jsx';
 
@@ -70,7 +71,7 @@ function MainRouter() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans pb-16 md:pb-0">
       <Header onNavigate={navigate} currentRoute={route} />
 
       <main className="flex-1">
@@ -92,10 +93,13 @@ function MainRouter() {
         {route === 'membership' && <MembershipPage onNavigate={navigate} />}
         {route === 'account' && <AccountDashboard onNavigate={navigate} />}
         {route === 'login' && <LoginPage onNavigate={navigate} />}
-        {route === 'cms' && <CMSPage slug={routeParams.slug} onNavigate={navigate} />}
+        {route === 'cms' && <CMSPage slug={routeParams.slug || 'contact'} onNavigate={navigate} />}
       </main>
 
       <Footer onNavigate={navigate} />
+
+      {/* Mobile Fixed Bottom Navigation */}
+      <MobileBottomNav onNavigate={navigate} currentRoute={route} />
 
       {/* Global Modals & Drawers */}
       <CartDrawer onNavigate={navigate} />

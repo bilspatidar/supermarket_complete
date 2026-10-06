@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   email TEXT,
+  account_type TEXT DEFAULT 'CUSTOMER', -- 'CUSTOMER' or 'INTERNAL'
   dob TEXT,
   anniversary_date TEXT,
   profile_image TEXT,

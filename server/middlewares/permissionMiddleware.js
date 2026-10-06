@@ -7,6 +7,14 @@ export function requirePermission(permissionName) {
       });
     }
 
+    // Must be an internal staff / admin account
+    if (req.user.account_type !== 'INTERNAL') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Customer accounts cannot access internal administrative resources.',
+      });
+    }
+
     const { roles = [], permissions = [] } = req.user;
 
     // Super Admin has all permissions
@@ -31,6 +39,13 @@ export function requireAnyPermission(permissionNames = []) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required',
+      });
+    }
+
+    if (req.user.account_type !== 'INTERNAL') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Customer accounts cannot access internal administrative resources.',
       });
     }
 

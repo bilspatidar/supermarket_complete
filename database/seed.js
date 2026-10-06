@@ -135,8 +135,8 @@ export async function runSeeder() {
   if (!adminUser) {
     const hash = await bcrypt.hash('admin123', 10);
     const res = await db.run(
-      `INSERT INTO users (uuid, mobile, password_hash, name, email, status, mobile_verified, dob_locked, anniversary_locked)
-       VALUES (?, ?, ?, ?, ?, 'ACTIVE', 1, 0, 0)`,
+      `INSERT INTO users (uuid, mobile, password_hash, name, email, account_type, status, mobile_verified, dob_locked, anniversary_locked)
+       VALUES (?, ?, ?, ?, ?, 'INTERNAL', 'ACTIVE', 1, 0, 0)`,
       [crypto.randomUUID(), adminMobile, hash, 'Super Admin', 'admin@freshmart.local']
     );
     const userId = res.lastInsertRowid;
@@ -149,8 +149,8 @@ export async function runSeeder() {
   if (!staffUser) {
     const hash = await bcrypt.hash('staff123', 10);
     const res = await db.run(
-      `INSERT INTO users (uuid, mobile, password_hash, name, email, status, mobile_verified, dob_locked, anniversary_locked)
-       VALUES (?, ?, ?, ?, ?, 'ACTIVE', 1, 0, 0)`,
+      `INSERT INTO users (uuid, mobile, password_hash, name, email, account_type, status, mobile_verified, dob_locked, anniversary_locked)
+       VALUES (?, ?, ?, ?, ?, 'INTERNAL', 'ACTIVE', 1, 0, 0)`,
       [crypto.randomUUID(), staffMobile, hash, 'Ramesh Cashier', 'cashier@freshmart.local']
     );
     const userId = res.lastInsertRowid;
@@ -164,8 +164,8 @@ export async function runSeeder() {
     const hash = await bcrypt.hash('customer123', 10);
     const custRole = await db.get('SELECT id FROM roles WHERE name = ?', ['CUSTOMER']);
     const res = await db.run(
-      `INSERT INTO users (uuid, mobile, password_hash, name, email, dob, anniversary_date, status, mobile_verified, dob_locked, anniversary_locked)
-       VALUES (?, ?, ?, ?, ?, '1990-09-14', '2018-12-25', 'ACTIVE', 1, 1, 1)`,
+      `INSERT INTO users (uuid, mobile, password_hash, name, email, account_type, dob, anniversary_date, status, mobile_verified, dob_locked, anniversary_locked)
+       VALUES (?, ?, ?, ?, ?, 'CUSTOMER', '1990-09-14', '2018-12-25', 'ACTIVE', 1, 1, 1)`,
       [crypto.randomUUID(), customerMobile, hash, 'Bilash Patidar', 'bilspatidar@gmail.com']
     );
     const userId = res.lastInsertRowid;

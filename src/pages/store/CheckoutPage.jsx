@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, MapPin, Clock, Tag, Gift, CreditCard, Banknote, ArrowRight, CheckCircle, AlertCircle, Plus, User } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, MapPin, Clock, Tag, Gift, CreditCard, Banknote, ArrowRight, CheckCircle, AlertCircle, Plus, User } from 'lucide-react';
 import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
@@ -130,6 +130,11 @@ export default function CheckoutPage({ onNavigate }) {
       return;
     }
 
+    if (user?.account_type === 'INTERNAL') {
+      alert('Access Denied: Internal staff/administrator accounts cannot place customer online store orders. Please switch to In-House POS or use a customer account.');
+      return;
+    }
+
     if (!selectedArea || !selectedSubArea) {
       alert('Please select a delivery Area and Sub-Area.');
       return;
@@ -244,6 +249,29 @@ export default function CheckoutPage({ onNavigate }) {
             className="px-4 py-2 bg-amber-900 hover:bg-amber-950 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 cursor-pointer"
           >
             Sign In / Register
+          </button>
+        </div>
+      )}
+
+      {/* Internal Staff Warning */}
+      {isAuthenticated && user?.account_type === 'INTERNAL' && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-200 text-rose-900 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-rose-950">Internal Staff / Admin Account Detected</h4>
+              <p className="text-[11px] text-rose-800">
+                Staff accounts are prohibited from placing customer online orders. Please switch to In-House POS or log in with a customer account.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('admin-pos')}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 cursor-pointer"
+          >
+            Go to In-House POS &rarr;
           </button>
         </div>
       )}
@@ -623,7 +651,7 @@ export default function CheckoutPage({ onNavigate }) {
             {/* Place Order CTA */}
             <button
               type="button"
-              disabled={placingOrder || Boolean(calcError) || calcLoading}
+              disabled={placingOrder || Boolean(calcError) || calcLoading || user?.account_type === 'INTERNAL'}
               onClick={handlePlaceOrder}
               className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-lg transition-transform active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >

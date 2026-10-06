@@ -32,7 +32,12 @@ export default function AdminDashboard({ onNavigate }) {
     return <div className="py-20 text-center text-slate-400 text-xs">Failed to load analytics.</div>;
   }
 
-  const { orders, inventory, topProducts, recentOrders, welcomeBonus, membership } = stats;
+  const orders = stats.orders || { revenue: 0, avgOrderValue: 0, total: 0, delivered: 0, pending: 0 };
+  const inventory = stats.inventory || { total: 0, lowStock: 0, outOfStock: 0 };
+  const topProducts = Array.isArray(stats.topProducts) ? stats.topProducts : [];
+  const recentOrders = Array.isArray(stats.recentOrders) ? stats.recentOrders : [];
+  const welcomeBonus = stats.welcomeBonus || { outstanding: 0, issued: 0, redeemed: 0 };
+  const membership = stats.membership || { total: 0, active: 0 };
 
   return (
     <div className="space-y-6">
@@ -167,34 +172,42 @@ export default function AdminDashboard({ onNavigate }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recentOrders.map(ord => (
-                  <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 font-mono font-bold text-slate-900">
-                      #{ord.order_number}
-                    </td>
-                    <td className="py-2.5">
-                      <div className="font-bold text-slate-800">{ord.customer_name}</div>
-                      <div className="text-[10px] text-slate-400">{ord.customer_mobile}</div>
-                    </td>
-                    <td className="py-2.5 font-semibold text-slate-600">
-                      {ord.source}
-                    </td>
-                    <td className="py-2.5">
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        ord.order_status === 'DELIVERED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : ord.order_status === 'CANCELLED'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {ord.order_status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right font-black text-slate-900">
-                      ₹{ord.grand_total}
+                {recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      No orders recorded yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentOrders.map(ord => (
+                    <tr key={ord.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 font-mono font-bold text-slate-900">
+                        #{ord.order_number}
+                      </td>
+                      <td className="py-2.5">
+                        <div className="font-bold text-slate-800">{ord.customer_name}</div>
+                        <div className="text-[10px] text-slate-400">{ord.customer_mobile}</div>
+                      </td>
+                      <td className="py-2.5 font-semibold text-slate-600">
+                        {ord.source}
+                      </td>
+                      <td className="py-2.5">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          ord.order_status === 'DELIVERED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : ord.order_status === 'CANCELLED'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {ord.order_status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right font-black text-slate-900">
+                        ₹{ord.grand_total}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

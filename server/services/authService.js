@@ -17,6 +17,9 @@ class AuthService {
    * Helper to load user's roles and permissions
    */
   async getUserRolesAndPermissions(userId) {
+    const user = await db.get('SELECT id, account_type FROM users WHERE id = ?', [userId]);
+    const accountType = user?.account_type || 'CUSTOMER';
+
     const roles = await db.query(
       `SELECT r.id, r.name, r.description FROM roles r
        JOIN user_roles ur ON r.id = ur.role_id
@@ -35,20 +38,27 @@ class AuthService {
     const roleNames = roles.map(r => r.name);
     const permNames = permissions.map(p => p.name);
 
-    // Determine target redirect destination
+    // Determine target redirect destination strictly based on account_type
     let destination = '/account';
-    if (roleNames.includes('SUPER_ADMIN') || roleNames.includes('STORE_MANAGER')) {
-      destination = '/admin/dashboard';
-    } else if (roleNames.includes('CASHIER_POS')) {
-      destination = '/admin/pos';
-    } else if (roleNames.includes('DELIVERY_STAFF')) {
-      destination = '/admin/orders';
+    if (accountType === 'INTERNAL') {
+      if (roleNames.includes('SUPER_ADMIN') || roleNames.includes('ADMIN') || roleNames.includes('STORE_MANAGER')) {
+        destination = '/admin/dashboard';
+      } else if (roleNames.includes('CASHIER_POS')) {
+        destination = '/admin/pos';
+      } else if (roleNames.includes('DELIVERY_STAFF')) {
+        destination = '/admin/orders';
+      } else {
+        destination = '/admin/dashboard';
+      }
+    } else {
+      destination = '/account';
     }
 
     return {
       roles: roleNames,
       permissions: permNames,
       destination,
+      account_type: accountType,
     };
   }
 
@@ -62,6 +72,7 @@ class AuthService {
         uuid: user.uuid,
         mobile: user.mobile,
         name: user.name,
+        account_type: user.account_type || meta.account_type || 'CUSTOMER',
         roles: meta.roles,
         permissions: meta.permissions,
         destination: meta.destination,
@@ -92,9 +103,9 @@ class AuthService {
 
     const res = await db.run(
       `INSERT INTO users (
-        uuid, mobile, password_hash, name, email, dob, anniversary_date,
+        uuid, mobile, password_hash, name, email, account_type, dob, anniversary_date,
         status, mobile_verified, dob_locked, anniversary_locked
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 1, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, 'CUSTOMER', ?, ?, 'ACTIVE', 1, ?, ?)`,
       [userUuid, cleanMobile, passwordHash, name, email, dob || null, anniversaryDate || null, dobLocked, annivLocked]
     );
 
@@ -128,6 +139,45 @@ class AuthService {
     const token = this.generateToken(user, meta);
 
     return { user, token, meta };
+  }
+
+  /**
+   * Create customer directly from In-House POS register
+   */
+  async createCustomerFromPos({ name, mobile, email = null }) {
+    const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
+    if (cleanMobile.length < 10) {
+      throw new Error('Valid 10-digit customer mobile is required');
+    }
+
+    const existing = await db.get('SELECT * FROM users WHERE mobile = ?', [cleanMobile]);
+    if (existing) {
+      if (existing.account_type === 'INTERNAL') {
+        throw new Error('This mobile belongs to an internal staff account and cannot be used as customer.');
+      }
+      return existing;
+    }
+
+    const passwordHash = await bcrypt.hash('pos123', 10);
+    const userUuid = crypto.randomUUID();
+
+    const res = await db.run(
+      `INSERT INTO users (
+        uuid, mobile, password_hash, name, email, account_type,
+        status, mobile_verified, dob_locked, anniversary_locked
+      ) VALUES (?, ?, ?, ?, ?, 'CUSTOMER', 'ACTIVE', 1, 0, 0)`,
+      [userUuid, cleanMobile, passwordHash, name, email || null]
+    );
+
+    const userId = res.lastInsertRowid;
+    const custRole = await db.get("SELECT id FROM roles WHERE name = 'CUSTOMER'");
+    if (custRole) {
+      await db.run('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, custRole.id]);
+    }
+
+    await this.triggerWelcomeBonusIfEligible(userId, name, cleanMobile);
+
+    return await db.get('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
   /**

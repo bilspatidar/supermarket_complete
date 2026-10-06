@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Tag, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { Tag, Plus, Trash2, CheckCircle, Percent, Gift } from 'lucide-react';
 import client from '../../api/client.js';
+import DeleteConfirmModal from '../../components/common/DeleteConfirmModal.jsx';
 
 export default function AdminCoupons() {
   const [coupons, setCoupons] = useState([]);
@@ -16,6 +17,11 @@ export default function AdminCoupons() {
   const [minOrder, setMinOrder] = useState('499');
   const [perUser, setPerUser] = useState('1');
   const [firstOrderOnly, setFirstOrderOnly] = useState(false);
+
+  // Delete Confirm Modal
+  const [deleteModalCoupon, setDeleteModalCoupon] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     loadCoupons();
@@ -55,13 +61,28 @@ export default function AdminCoupons() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Deactivate coupon?')) return;
+  async function handleDeleteConfirm(password) {
+    if (!deleteModalCoupon) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+
     try {
-      await client.delete(`/coupons/${id}`);
-      loadCoupons();
+      const res = await client.delete(`/coupons/${deleteModalCoupon.id}`, {
+        headers: {
+          'x-confirm-password': password,
+        },
+      });
+
+      if (res.success) {
+        setDeleteModalCoupon(null);
+        loadCoupons();
+      } else {
+        throw new Error(res.message || 'Deletion failed');
+      }
     } catch (err) {
-      alert(err.message);
+      setDeleteError(err.message || 'Failed to delete coupon. Verify password.');
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -99,49 +120,61 @@ export default function AdminCoupons() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {coupons.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-3.5 font-mono font-black text-slate-900">
-                    {c.code}
-                    <div className="text-[10px] text-slate-400 font-sans font-normal">{c.description}</div>
-                  </td>
-
-                  <td className="p-3.5 font-bold text-emerald-800">
-                    {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}% (Max ₹${c.max_discount || 'None'})` : `Flat ₹${c.discount_value}`}
-                  </td>
-
-                  <td className="p-3.5 font-semibold text-slate-700">
-                    ₹{c.min_order_amount}
-                  </td>
-
-                  <td className="p-3.5 font-semibold text-slate-700">
-                    {c.per_user_limit} use(s)
-                  </td>
-
-                  <td className="p-3.5 text-slate-500 text-[11px]">
-                    {c.first_order_only ? '1st Order Only' : 'All Customers'}
-                  </td>
-
-                  <td className="p-3.5">
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {c.status}
-                    </span>
-                  </td>
-
-                  <td className="p-3.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(c.id)}
-                      className="p-1.5 hover:text-rose-600 text-slate-400 transition-colors cursor-pointer"
-                      title="Deactivate"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">Loading coupons...</td>
                 </tr>
-              ))}
+              ) : coupons.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">No promotional coupons configured.</td>
+                </tr>
+              ) : (
+                coupons.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3.5 font-mono font-black text-emerald-800 text-xs">
+                      {c.code}
+                    </td>
+
+                    <td className="p-3.5 font-bold text-slate-900">
+                      {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}% (Max ₹${c.max_discount || 'None'})` : `Flat ₹${c.discount_value}`}
+                    </td>
+
+                    <td className="p-3.5 font-semibold text-slate-700">
+                      ₹{c.min_order_amount}
+                    </td>
+
+                    <td className="p-3.5 font-semibold text-slate-700">
+                      {c.per_user_limit} use(s)
+                    </td>
+
+                    <td className="p-3.5 text-slate-500 text-[11px]">
+                      {c.first_order_only ? '1st Order Only' : 'All Customers'}
+                    </td>
+
+                    <td className="p-3.5">
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {c.status}
+                      </span>
+                    </td>
+
+                    <td className="p-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteModalCoupon(c);
+                          setDeleteError('');
+                        }}
+                        className="p-1.5 hover:text-rose-600 text-slate-400 transition-colors cursor-pointer"
+                        title="Delete Coupon (Password Protected)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -188,19 +221,22 @@ export default function AdminCoupons() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              {type === 'PERCENTAGE' && (
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Max Discount (₹)</label>
+                  <label className="font-bold text-slate-700 block mb-1">Max Discount Cap (₹)</label>
                   <input
                     type="number"
                     value={maxDisc}
                     onChange={(e) => setMaxDisc(e.target.value)}
-                    placeholder="Leave empty if fixed"
+                    placeholder="Leave blank for no limit"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Min Order Amount (₹)</label>
+                  <label className="font-bold text-slate-700 block mb-1">Min Basket (₹)</label>
                   <input
                     type="number"
                     value={minOrder}
@@ -208,28 +244,39 @@ export default function AdminCoupons() {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Per User Limit</label>
+                  <input
+                    type="number"
+                    value={perUser}
+                    onChange={(e) => setPerUser(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Description</label>
-                <textarea
-                  rows={2}
+                <input
+                  type="text"
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
-                  placeholder="Terms or coupon description..."
+                  placeholder="e.g. 10% off for all grocery orders above ₹499"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer pt-1">
-                <input
-                  type="checkbox"
-                  checked={firstOrderOnly}
-                  onChange={(e) => setFirstOrderOnly(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded"
-                />
-                <span className="font-bold text-slate-800">First-Time Customers Only</span>
-              </label>
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={firstOrderOnly}
+                    onChange={(e) => setFirstOrderOnly(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600"
+                  />
+                  <span>First-time order customers only</span>
+                </label>
+              </div>
 
               <div className="pt-2 flex justify-end gap-2">
                 <button
@@ -243,13 +290,25 @@ export default function AdminCoupons() {
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer"
                 >
-                  Save Coupon
+                  Create Coupon
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Sensitive Delete Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deleteModalCoupon)}
+        title="Confirm Coupon Deactivation"
+        itemName={deleteModalCoupon ? `Coupon Code: ${deleteModalCoupon.code}` : ''}
+        message="This will deactivate this coupon code across the store and in-house POS."
+        loading={deleteLoading}
+        error={deleteError}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => setDeleteModalCoupon(null)}
+      />
 
     </div>
   );

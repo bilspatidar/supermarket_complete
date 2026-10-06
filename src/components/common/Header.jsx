@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
-import { ShoppingCart, User, MapPin, Search, Mic, MicOff, LogOut, ShieldAlert, Store, ChevronDown } from 'lucide-react';
+import {
+  ShoppingCart,
+  User,
+  MapPin,
+  Search,
+  Mic,
+  MicOff,
+  LogOut,
+  ShieldAlert,
+  Store,
+  ChevronDown,
+  Tag,
+  Crown,
+  Grid,
+  ShoppingBag,
+  Home,
+  Percent,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
 import { useDelivery } from '../../context/DeliveryContext.jsx';
@@ -29,7 +46,7 @@ export default function Header({ onNavigate, currentRoute }) {
       return;
     }
 
-    setVoiceNotice('Listening... Speak now (e.g., "Flax seed" or "Amul milk")');
+    setVoiceNotice('Listening... Speak product name now');
     setIsListening(true);
 
     voiceSearch.startListening({
@@ -61,26 +78,31 @@ export default function Header({ onNavigate, currentRoute }) {
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-emerald-100 shadow-xs">
       {/* Top micro banner */}
-      <div className="bg-emerald-800 text-emerald-50 text-xs py-1.5 px-4 font-medium flex justify-between items-center">
+      <div className="bg-emerald-900 text-emerald-50 text-xs py-1.5 px-4 font-medium flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="bg-emerald-600 px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase">Express</span>
+          <span className="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase">Express</span>
           <span>⚡ 100% Farm Fresh Produce &amp; Groceries Delivered in Jabalpur</span>
         </div>
-        <div className="hidden md:flex items-center gap-4 text-emerald-100">
+        <div className="hidden md:flex items-center gap-4 text-emerald-100 text-[11px]">
           <span>Daily Hours: 08:00 AM - 10:00 PM</span>
-          <span className="text-emerald-400">|</span>
-          <span>WhatsApp Hotline: +91 98765 43210</span>
+          <span className="text-emerald-500">|</span>
+          <button
+            onClick={() => onNavigate('cms', { slug: 'contact' })}
+            className="text-emerald-200 hover:text-white underline cursor-pointer"
+          >
+            Contact &amp; Store Location
+          </button>
         </div>
       </div>
 
       {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           
           {/* Logo & Brand */}
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-hidden"
+            className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-hidden shrink-0"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform">
               <Store className="w-6 h-6" />
@@ -98,12 +120,12 @@ export default function Header({ onNavigate, currentRoute }) {
           {/* Delivery Zone Selector */}
           <button
             onClick={() => setIsZoneModalOpen(true)}
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 transition-colors text-left cursor-pointer"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 transition-colors text-left cursor-pointer shrink-0"
           >
             <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
             <div className="text-xs">
-              <div className="text-slate-400 font-medium">Deliver to</div>
-              <div className="font-bold text-slate-800 truncate max-w-[130px]">
+              <div className="text-slate-400 font-medium text-[10px]">Deliver to</div>
+              <div className="font-bold text-slate-800 truncate max-w-[120px]">
                 {selectedSubArea ? `${selectedSubArea.name}, ${selectedArea?.name}` : 'Select Area'}
               </div>
             </div>
@@ -111,7 +133,7 @@ export default function Header({ onNavigate, currentRoute }) {
           </button>
 
           {/* Search bar with Voice Search */}
-          <div className="flex-1 max-w-xl relative">
+          <div className="flex-1 max-w-lg relative">
             <form onSubmit={handleSearchSubmit} className="relative flex items-center">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Search className="w-4 h-4" />
@@ -120,8 +142,8 @@ export default function Header({ onNavigate, currentRoute }) {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search fruits, milk, atta, 20 20 flax seed..."
-                className="w-full pl-10 pr-12 py-2 text-sm bg-slate-100 hover:bg-slate-50 focus:bg-white border border-transparent focus:border-emerald-500 rounded-xl transition-all outline-hidden text-slate-900 placeholder:text-slate-400 shadow-inner"
+                placeholder="Search fruits, milk, atta, spices..."
+                className="w-full pl-10 pr-12 py-2 text-xs sm:text-sm bg-slate-100 hover:bg-slate-50 focus:bg-white border border-transparent focus:border-emerald-500 rounded-xl transition-all outline-hidden text-slate-900 placeholder:text-slate-400 shadow-inner"
               />
               <button
                 type="button"
@@ -137,7 +159,6 @@ export default function Header({ onNavigate, currentRoute }) {
               </button>
             </form>
 
-            {/* Voice notice popup */}
             {voiceNotice && (
               <div className="absolute top-full mt-2 left-0 right-0 bg-slate-900 text-white text-xs py-2 px-3 rounded-lg shadow-xl z-50 flex items-center gap-2 animate-fade-in">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -146,32 +167,14 @@ export default function Header({ onNavigate, currentRoute }) {
             )}
           </div>
 
-          {/* Actions: Account & Cart */}
-          <div className="flex items-center gap-2 sm:gap-3">
-
-            {/* Store Navigation Link */}
-            <button
-              onClick={() => onNavigate('shop')}
-              className={`hidden lg:block text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                currentRoute === 'shop' ? 'text-emerald-700 bg-emerald-50' : 'text-slate-700 hover:text-emerald-600'
-              }`}
-            >
-              All Products
-            </button>
-
-            {/* Membership Link */}
-            <button
-              onClick={() => onNavigate('membership')}
-              className="hidden lg:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-              <span>VIP Saver</span>
-            </button>
+          {/* Actions: Staff Portal, Account & Cart */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
 
             {/* Staff / Admin Quick Link */}
             {isStaff && (
               <button
                 onClick={() => onNavigate(isAdmin ? 'admin-dashboard' : 'admin-pos')}
-                className="hidden sm:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>{isAdmin ? 'Admin Console' : 'POS Cashier'}</span>
@@ -184,12 +187,12 @@ export default function Header({ onNavigate, currentRoute }) {
                 <div className="relative">
                   <button
                     onClick={() => setUserDropdown(!userDropdown)}
-                    className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                    className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
                       {user.name?.charAt(0).toUpperCase()}
                     </div>
-                    <span className="hidden sm:block text-xs font-semibold text-slate-800 max-w-[100px] truncate">
+                    <span className="hidden sm:block text-xs font-semibold text-slate-800 max-w-[90px] truncate">
                       {user.name.split(' ')[0]}
                     </span>
                     <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />
@@ -203,21 +206,26 @@ export default function Header({ onNavigate, currentRoute }) {
                       <div className="px-4 py-2 border-b border-slate-100">
                         <p className="font-bold text-slate-900 truncate">{user.name}</p>
                         <p className="text-slate-500 text-[11px] font-mono">{user.mobile}</p>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                          {user.account_type === 'INTERNAL' ? 'Staff Account' : 'Customer Account'}
+                        </span>
                       </div>
 
-                      <button
-                        onClick={() => onNavigate('account')}
-                        className="w-full text-left px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 font-medium flex items-center gap-2 cursor-pointer"
-                      >
-                        <User className="w-3.5 h-3.5" /> My Profile &amp; Orders
-                      </button>
+                      {user.account_type === 'CUSTOMER' && (
+                        <button
+                          onClick={() => onNavigate('account')}
+                          className="w-full text-left px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 font-medium flex items-center gap-2 cursor-pointer"
+                        >
+                          <User className="w-3.5 h-3.5" /> My Profile &amp; Orders
+                        </button>
+                      )}
 
                       {isStaff && (
                         <button
                           onClick={() => onNavigate('admin-dashboard')}
                           className="w-full text-left px-4 py-2 text-indigo-700 hover:bg-indigo-50 font-bold flex items-center gap-2 cursor-pointer"
                         >
-                          <ShieldAlert className="w-3.5 h-3.5" /> Admin / Staff Portal
+                          <ShieldAlert className="w-3.5 h-3.5" /> Admin Console
                         </button>
                       )}
 
@@ -233,10 +241,10 @@ export default function Header({ onNavigate, currentRoute }) {
               ) : (
                 <button
                   onClick={() => onNavigate('login')}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sign In</span>
+                  <span>Sign In</span>
                 </button>
               )}
             </div>
@@ -261,8 +269,87 @@ export default function Header({ onNavigate, currentRoute }) {
           </div>
         </div>
 
+        {/* Desktop Top Navigation Bar (Home, Shop, Categories, Offers, Membership, Cart, Account, Search) */}
+        <nav className="hidden md:flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 text-xs font-bold text-slate-700">
+          <div className="flex items-center gap-1 lg:gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate('home')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentRoute === 'home' ? 'text-emerald-700 bg-emerald-50' : 'hover:text-emerald-600 hover:bg-slate-50'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('shop')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentRoute === 'shop' ? 'text-emerald-700 bg-emerald-50' : 'hover:text-emerald-600 hover:bg-slate-50'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Shop</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('shop')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:text-emerald-600 hover:bg-slate-50"
+            >
+              <Grid className="w-3.5 h-3.5" />
+              <span>Categories</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('shop', { filter: 'offers' })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-rose-700 bg-rose-50/70 hover:bg-rose-100 transition-colors cursor-pointer"
+            >
+              <Percent className="w-3.5 h-3.5" />
+              <span>Offers &amp; Deals</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('membership')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                currentRoute === 'membership'
+                  ? 'text-amber-900 bg-amber-100'
+                  : 'text-amber-800 bg-amber-50 hover:bg-amber-100'
+              }`}
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span>Membership</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 text-slate-500 font-semibold text-[11px]">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>Cart ({count})</span>
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => {
+                if (user) onNavigate('account');
+                else onNavigate('login');
+              }}
+              className="hover:text-emerald-600 flex items-center gap-1 cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Account</span>
+            </button>
+          </div>
+        </nav>
+
         {/* Mobile Delivery selector strip */}
-        <div className="mt-2.5 pt-2 border-t border-slate-100 flex md:hidden items-center justify-between text-xs">
+        <div className="mt-2 pt-2 border-t border-slate-100 flex md:hidden items-center justify-between text-xs">
           <button
             onClick={() => setIsZoneModalOpen(true)}
             className="flex items-center gap-1.5 text-slate-700 hover:text-emerald-700 font-semibold"

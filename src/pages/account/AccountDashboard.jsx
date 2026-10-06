@@ -19,6 +19,36 @@ export default function AccountDashboard({ onNavigate }) {
   const [profileMsg, setProfileMsg] = useState('');
   const [profileError, setProfileError] = useState('');
 
+  if (user?.account_type === 'INTERNAL') {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-4 animate-fade-in">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-md">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Internal Administrative Account</h2>
+        <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+          You are signed in with an internal staff/admin profile (<strong>{user?.name}</strong>).
+          Internal staff accounts manage supermarket operations through the Admin Console &amp; In-House POS.
+          Backend access to customer store accounts and checkout is strictly forbidden for security.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <button
+            onClick={() => onNavigate('admin-dashboard')}
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
+          >
+            Go to Admin Console &rarr;
+          </button>
+          <button
+            onClick={() => onNavigate('admin-pos')}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
+          >
+            In-House POS &rarr;
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     loadAccountData();
   }, []);
@@ -27,7 +57,7 @@ export default function AccountDashboard({ onNavigate }) {
     setLoading(true);
     try {
       const [orderRes, bonusRes, memberRes, addrRes] = await Promise.all([
-        client.get('/orders'),
+        client.get('/customer/orders'),
         client.get('/bonus/ledger'),
         client.get('/membership/my-status'),
         client.get('/addresses'),

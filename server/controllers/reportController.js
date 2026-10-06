@@ -10,6 +10,47 @@ export async function getDashboardStats(req, res) {
   }
 }
 
+export async function getDetailedReport(req, res) {
+  try {
+    const { type = 'sales', period = 'last30', fromDate, toDate } = req.query;
+    const reportData = await reportService.getDetailedReport({ type, period, fromDate, toDate });
+    return res.json({ success: true, type, period, data: reportData });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+}
+
+export async function exportDetailedReport(req, res) {
+  try {
+    const { type = 'sales', period = 'last30', fromDate, toDate } = req.query;
+    const reportData = await reportService.getDetailedReport({ type, period, fromDate, toDate });
+    const rows = reportData.rows || [];
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No records to export for selected period.' });
+    }
+
+    const headers = Object.keys(rows[0]);
+    const csvRows = [headers.join(',')];
+
+    for (const row of rows) {
+      const line = headers.map(h => {
+        let val = row[h];
+        if (val === null || val === undefined) return '""';
+        val = String(val).replace(/"/g, '""');
+        return `"${val}"`;
+      });
+      csvRows.push(line.join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=report-${type}-${period}-${Date.now()}.csv`);
+    return res.send(csvRows.join('\n'));
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 export async function getCustomerStats(req, res) {
   try {
     const { id } = req.params;
@@ -63,6 +104,8 @@ export async function getNotificationLogs(req, res) {
 
 export default {
   getDashboardStats,
+  getDetailedReport,
+  exportDetailedReport,
   getCustomerStats,
   getAuditLogs,
   getNotificationLogs,

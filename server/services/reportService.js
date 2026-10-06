@@ -2,74 +2,75 @@ import db from '../../database/connection.js';
 
 class ReportService {
   /**
-   * Aggregate Real Data for Admin Dashboard & Reports
+   * Helper to generate date filter clause and parameters for SQLite
+   */
+  getDateFilter(colName = 'created_at', period = 'last30', fromDate = null, toDate = null) {
+    if (period === 'today') {
+      return { clause: `DATE(${colName}) = DATE('now')`, args: [] };
+    }
+    if (period === 'yesterday') {
+      return { clause: `DATE(${colName}) = DATE('now', '-1 day')`, args: [] };
+    }
+    if (period === 'last7') {
+      return { clause: `DATE(${colName}) >= DATE('now', '-7 days')`, args: [] };
+    }
+    if (period === 'last30') {
+      return { clause: `DATE(${colName}) >= DATE('now', '-30 days')`, args: [] };
+    }
+    if (period === 'thisMonth') {
+      return { clause: `strftime('%Y-%m', ${colName}) = strftime('%Y-%m', 'now')`, args: [] };
+    }
+    if (period === 'lastMonth') {
+      return { clause: `strftime('%Y-%m', ${colName}) = strftime('%Y-%m', 'now', '-1 month')`, args: [] };
+    }
+    if (period === 'custom' && fromDate && toDate) {
+      return { clause: `DATE(${colName}) >= DATE(?) AND DATE(${colName}) <= DATE(?)`, args: [fromDate, toDate] };
+    }
+    if (period === 'custom' && fromDate) {
+      return { clause: `DATE(${colName}) >= DATE(?)`, args: [fromDate] };
+    }
+    // Default last 30 days
+    return { clause: `DATE(${colName}) >= DATE('now', '-30 days')`, args: [] };
+  }
+
+  /**
+   * Aggregate Real Data for Admin Dashboard Summary
    */
   async getDashboardSummary() {
-    // Orders & Revenue
     const orderStats = await db.get(
       `SELECT 
         COUNT(id) as total_orders,
+        COALESCE(SUM(grand_total), 0) as total_revenue,
+        COALESCE(AVG(grand_total), 0) as avg_order_value,
         SUM(CASE WHEN order_status = 'DELIVERED' THEN 1 ELSE 0 END) as delivered_orders,
         SUM(CASE WHEN order_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_orders,
-        SUM(CASE WHEN order_status IN ('PENDING', 'CONFIRMED', 'PROCESSING', 'READY', 'OUT_FOR_DELIVERY') THEN 1 ELSE 0 END) as pending_orders,
-        COALESCE(SUM(CASE WHEN order_status != 'CANCELLED' THEN grand_total ELSE 0 END), 0) as total_revenue,
-        COALESCE(AVG(CASE WHEN order_status != 'CANCELLED' THEN grand_total ELSE NULL END), 0) as avg_order_value
+        SUM(CASE WHEN order_status NOT IN ('DELIVERED', 'CANCELLED') THEN 1 ELSE 0 END) as pending_orders
        FROM orders`
     );
 
-    // Payments Breakdown
     const paymentStats = await db.query(
       `SELECT payment_method, status, COUNT(id) as count, COALESCE(SUM(amount), 0) as total_amount
        FROM payments
        GROUP BY payment_method, status`
     );
 
-    // Customer Stats
-    const totalCustomers = await db.get(
-      `SELECT COUNT(DISTINCT u.id) as count FROM users u
-       JOIN user_roles ur ON u.id = ur.user_id
-       JOIN roles r ON ur.role_id = r.id
-       WHERE r.name = 'CUSTOMER'`
-    );
+    const totalCustomers = await db.get("SELECT COUNT(id) as count FROM users WHERE account_type = 'CUSTOMER'");
 
-    const repeatCustomers = await db.get(
-      `SELECT COUNT(user_id) as count FROM (
-        SELECT user_id FROM orders WHERE order_status != 'CANCELLED' GROUP BY user_id HAVING COUNT(id) > 1
-      )`
-    );
-
-    // Product Inventory Alerts
     const productStats = await db.get(
       `SELECT 
         COUNT(id) as total_products,
         SUM(CASE WHEN stock <= minimum_stock AND stock > 0 THEN 1 ELSE 0 END) as low_stock_count,
-        SUM(CASE WHEN stock = 0 THEN 1 ELSE 0 END) as out_of_stock_count
+        SUM(CASE WHEN stock <= 0 THEN 1 ELSE 0 END) as out_of_stock_count
        FROM products WHERE status = 'ACTIVE'`
     );
 
-    // Best Selling Products
-    const topProducts = await db.query(
-      `SELECT oi.product_id, oi.product_name, oi.product_code, 
-              SUM(oi.quantity) as units_sold, SUM(oi.total) as total_sales
-       FROM order_items oi
-       JOIN orders o ON oi.order_id = o.id
-       WHERE o.order_status != 'CANCELLED'
-       GROUP BY oi.product_id
-       ORDER BY units_sold DESC
-       LIMIT 5`
-    );
-
-    // Membership Stats
-    const nowIso = new Date().toISOString();
     const membershipStats = await db.get(
       `SELECT 
         COUNT(id) as total_subscribers,
-        SUM(CASE WHEN status = 'ACTIVE' AND end_date >= ? THEN 1 ELSE 0 END) as active_subscribers
-       FROM customer_memberships`,
-      [nowIso]
+        SUM(CASE WHEN status = 'ACTIVE' AND end_date >= datetime('now') THEN 1 ELSE 0 END) as active_subscribers
+       FROM customer_memberships`
     );
 
-    // Welcome Bonus Stats
     const bonusStats = await db.get(
       `SELECT 
         COALESCE(SUM(CASE WHEN type = 'WELCOME_BONUS' THEN amount ELSE 0 END), 0) as total_issued,
@@ -78,19 +79,28 @@ class ReportService {
        FROM customer_bonus_transactions`
     );
 
-    // Coupon Usage Stats
     const couponStats = await db.get(
-      `SELECT COUNT(id) as total_uses, COALESCE(SUM(discount_amount), 0) as total_discount_given
-       FROM coupon_usages`
+      `SELECT COUNT(id) as total_uses, COALESCE(SUM(discount_amount), 0) as total_discount_given FROM coupon_usages`
     );
 
-    // Recent 10 Orders
     const recentOrders = await db.query(
       `SELECT o.id, o.order_number, o.source, o.grand_total, o.payment_method, 
               o.payment_status, o.order_status, o.created_at, u.name as customer_name, u.mobile as customer_mobile
        FROM orders o
        JOIN users u ON o.user_id = u.id
        ORDER BY o.id DESC LIMIT 10`
+    );
+
+    const topProducts = await db.query(
+      `SELECT oi.product_id, p.name as product_name, p.product_code, p.image as product_image,
+              SUM(oi.quantity) as units_sold,
+              SUM(oi.total) as total_sales
+       FROM order_items oi
+       JOIN products p ON oi.product_id = p.id
+       JOIN orders o ON oi.order_id = o.id
+       WHERE o.order_status != 'CANCELLED'
+       GROUP BY oi.product_id
+       ORDER BY units_sold DESC LIMIT 5`
     );
 
     return {
@@ -105,14 +115,12 @@ class ReportService {
       payments: paymentStats,
       customers: {
         total: Number(totalCustomers?.count || 0),
-        repeat: Number(repeatCustomers?.count || 0),
       },
       inventory: {
         total: Number(productStats?.total_products || 0),
         lowStock: Number(productStats?.low_stock_count || 0),
         outOfStock: Number(productStats?.out_of_stock_count || 0),
       },
-      topProducts,
       membership: {
         total: Number(membershipStats?.total_subscribers || 0),
         active: Number(membershipStats?.active_subscribers || 0),
@@ -128,59 +136,307 @@ class ReportService {
         totalDiscount: Math.round(Number(couponStats?.total_discount_given || 0)),
       },
       recentOrders,
+      topProducts,
     };
   }
 
   /**
-   * Real stats for a specific customer
+   * Comprehensive 11 Relational Database Reports Engine
+   * Reports: Sales, Orders, Payments, Customers, Products, Categories, Brands, Membership, Coupons, Welcome Bonus, Inventory
    */
-  async getCustomerStats(userId) {
-    const stats = await db.get(
-      `SELECT 
-        COUNT(id) as total_orders,
-        COALESCE(SUM(CASE WHEN order_status != 'CANCELLED' THEN grand_total ELSE 0 END), 0) as total_spent,
-        COALESCE(AVG(CASE WHEN order_status != 'CANCELLED' THEN grand_total ELSE NULL END), 0) as avg_order_value,
-        MIN(created_at) as first_order_date,
-        MAX(created_at) as last_order_date
-       FROM orders WHERE user_id = ?`,
-      [userId]
-    );
+  async getDetailedReport({ type = 'sales', period = 'last30', fromDate = null, toDate = null }) {
+    const dateInfo = this.getDateFilter('created_at', period, fromDate, toDate);
 
-    // Active membership
-    const nowIso = new Date().toISOString();
-    const membership = await db.get(
-      `SELECT cm.id, mp.name as plan_name, cm.end_date 
-       FROM customer_memberships cm
-       JOIN membership_plans mp ON cm.plan_id = mp.id
-       WHERE cm.user_id = ? AND cm.status = 'ACTIVE' AND cm.end_date >= ?
-       ORDER BY cm.id DESC LIMIT 1`,
-      [userId, nowIso]
-    );
+    switch (type.toLowerCase()) {
+      case 'sales': {
+        const oDate = this.getDateFilter('o.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(o.id) as total_orders,
+            COALESCE(SUM(o.subtotal), 0) as gross_subtotal,
+            COALESCE(SUM(o.tax), 0) as tax_collected,
+            COALESCE(SUM(o.delivery_charge), 0) as delivery_fees,
+            COALESCE(SUM(COALESCE(o.membership_discount, 0) + COALESCE(o.coupon_discount, 0) + COALESCE(o.bonus_discount, 0)), 0) as discounts_given,
+            COALESCE(SUM(o.grand_total), 0) as net_revenue,
+            COALESCE(AVG(o.grand_total), 0) as avg_order_value
+           FROM orders o
+           WHERE o.order_status != 'CANCELLED' AND ${oDate.clause}`,
+          oDate.args
+        );
 
-    // Active Bonus
-    const bonusCredits = await db.get(
-      `SELECT SUM(amount) as total FROM customer_bonus_transactions 
-       WHERE user_id = ? AND type IN ('WELCOME_BONUS', 'ADMIN_CREDIT', 'REVERSAL') 
-       AND status = 'ACTIVE' AND (expires_at IS NULL OR expires_at >= ?)`,
-      [userId, nowIso]
-    );
-    const bonusDebits = await db.get(
-      `SELECT SUM(amount) as total FROM customer_bonus_transactions 
-       WHERE user_id = ? AND type IN ('REDEMPTION', 'ADMIN_DEBIT', 'EXPIRY')`,
-      [userId]
-    );
+        const breakdown = await db.query(
+          `SELECT DATE(o.created_at) as date,
+                  COUNT(o.id) as order_count,
+                  COALESCE(SUM(o.subtotal), 0) as subtotal,
+                  COALESCE(SUM(o.tax), 0) as tax,
+                  COALESCE(SUM(o.delivery_charge), 0) as delivery,
+                  COALESCE(SUM(COALESCE(o.membership_discount, 0) + COALESCE(o.coupon_discount, 0) + COALESCE(o.bonus_discount, 0)), 0) as discount,
+                  COALESCE(SUM(o.grand_total), 0) as total_sales
+           FROM orders o
+           WHERE o.order_status != 'CANCELLED' AND ${oDate.clause}
+           GROUP BY DATE(o.created_at)
+           ORDER BY date DESC`,
+          oDate.args
+        );
 
-    const availableBonus = Math.max(0, Number(bonusCredits?.total || 0) - Number(bonusDebits?.total || 0));
+        return { summary, rows: breakdown };
+      }
 
-    return {
-      totalOrders: Number(stats?.total_orders || 0),
-      totalSpent: Math.round(Number(stats?.total_spent || 0)),
-      avgOrderValue: Math.round(Number(stats?.avg_order_value || 0)),
-      firstOrderDate: stats?.first_order_date || null,
-      lastOrderDate: stats?.last_order_date || null,
-      activeMembership: membership ? { plan: membership.plan_name, expires: membership.end_date } : null,
-      availableBonus,
-    };
+      case 'orders': {
+        const oDate = this.getDateFilter('o.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(o.id) as total_orders,
+            SUM(CASE WHEN o.order_status = 'DELIVERED' THEN 1 ELSE 0 END) as delivered,
+            SUM(CASE WHEN o.order_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled,
+            SUM(CASE WHEN o.order_status NOT IN ('DELIVERED', 'CANCELLED') THEN 1 ELSE 0 END) as active,
+            SUM(CASE WHEN o.source = 'ONLINE' THEN 1 ELSE 0 END) as online_count,
+            SUM(CASE WHEN o.source = 'IN_HOUSE' THEN 1 ELSE 0 END) as pos_count,
+            COALESCE(SUM(o.grand_total), 0) as total_value
+           FROM orders o
+           WHERE ${oDate.clause}`,
+          oDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT o.order_number, o.created_at, o.source, o.order_status, o.payment_status,
+                  o.payment_method, o.grand_total, u.name as customer_name, u.mobile as customer_mobile
+           FROM orders o
+           JOIN users u ON o.user_id = u.id
+           WHERE ${oDate.clause}
+           ORDER BY o.id DESC LIMIT 500`,
+          oDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'payments': {
+        const pDate = this.getDateFilter('p.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(p.id) as total_transactions,
+            COALESCE(SUM(p.amount), 0) as total_amount,
+            SUM(CASE WHEN p.status = 'SUCCESS' THEN 1 ELSE 0 END) as success_count,
+            SUM(CASE WHEN p.status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
+            SUM(CASE WHEN p.status = 'FAILED' THEN 1 ELSE 0 END) as failed_count
+           FROM payments p
+           WHERE ${pDate.clause}`,
+          pDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT p.payment_method, p.status, COUNT(p.id) as txn_count, COALESCE(SUM(p.amount), 0) as volume
+           FROM payments p
+           WHERE ${pDate.clause}
+           GROUP BY p.payment_method, p.status
+           ORDER BY volume DESC`,
+          pDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'customers': {
+        const uDate = this.getDateFilter('u.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(u.id) as new_signups,
+            SUM(CASE WHEN u.status = 'ACTIVE' THEN 1 ELSE 0 END) as active_accounts
+           FROM users u
+           WHERE u.account_type = 'CUSTOMER' AND ${uDate.clause}`,
+          uDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT u.id, u.name, u.mobile, u.email, u.created_at, u.status,
+                  COUNT(o.id) as order_count,
+                  COALESCE(SUM(CASE WHEN o.order_status != 'CANCELLED' THEN o.grand_total ELSE 0 END), 0) as total_spent
+           FROM users u
+           LEFT JOIN orders o ON u.id = o.user_id
+           WHERE u.account_type = 'CUSTOMER' AND ${uDate.clause}
+           GROUP BY u.id
+           ORDER BY total_spent DESC LIMIT 200`,
+          uDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'products': {
+        const oiDate = this.getDateFilter('o.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(DISTINCT oi.product_id) as products_sold,
+            COALESCE(SUM(oi.quantity), 0) as total_units_sold,
+            COALESCE(SUM(oi.total), 0) as gross_product_revenue
+           FROM order_items oi
+           JOIN orders o ON oi.order_id = o.id
+           WHERE o.order_status != 'CANCELLED' AND ${oiDate.clause}`,
+          oiDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT p.id, p.product_code, p.name, c.name as category_name, p.stock,
+                  COALESCE(SUM(oi.quantity), 0) as units_sold,
+                  COALESCE(SUM(oi.total), 0) as total_revenue
+           FROM products p
+           JOIN order_items oi ON p.id = oi.product_id
+           JOIN orders o ON oi.order_id = o.id
+           LEFT JOIN categories c ON p.category_id = c.id
+           WHERE o.order_status != 'CANCELLED' AND ${oiDate.clause}
+           GROUP BY p.id
+           ORDER BY total_revenue DESC LIMIT 200`,
+          oiDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'categories': {
+        const oDate = this.getDateFilter('o.created_at', period, fromDate, toDate);
+        const rows = await db.query(
+          `SELECT c.id, c.name, c.slug,
+                  COUNT(DISTINCT p.id) as product_count,
+                  COALESCE(SUM(oi.quantity), 0) as units_sold,
+                  COALESCE(SUM(oi.total), 0) as revenue
+           FROM categories c
+           LEFT JOIN products p ON c.id = p.category_id
+           LEFT JOIN order_items oi ON p.id = oi.product_id
+           LEFT JOIN orders o ON oi.order_id = o.id AND o.order_status != 'CANCELLED' AND ${oDate.clause}
+           GROUP BY c.id
+           ORDER BY revenue DESC`,
+          oDate.args
+        );
+
+        const totalRevenue = rows.reduce((acc, r) => acc + Number(r.revenue || 0), 0);
+        return { summary: { totalCategories: rows.length, totalRevenue }, rows };
+      }
+
+      case 'brands': {
+        const oDate = this.getDateFilter('o.created_at', period, fromDate, toDate);
+        const rows = await db.query(
+          `SELECT b.id, b.name, b.slug,
+                  COUNT(DISTINCT p.id) as product_count,
+                  COALESCE(SUM(oi.quantity), 0) as units_sold,
+                  COALESCE(SUM(oi.total), 0) as revenue
+           FROM brands b
+           LEFT JOIN products p ON b.id = p.brand_id
+           LEFT JOIN order_items oi ON p.id = oi.product_id
+           LEFT JOIN orders o ON oi.order_id = o.id AND o.order_status != 'CANCELLED' AND ${oDate.clause}
+           GROUP BY b.id
+           ORDER BY revenue DESC`,
+          oDate.args
+        );
+
+        const totalRevenue = rows.reduce((acc, r) => acc + Number(r.revenue || 0), 0);
+        return { summary: { totalBrands: rows.length, totalRevenue }, rows };
+      }
+
+      case 'membership': {
+        const cmDate = this.getDateFilter('cm.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(cm.id) as new_subscriptions,
+            COALESCE(SUM(mp.price), 0) as revenue_collected
+           FROM customer_memberships cm
+           JOIN membership_plans mp ON cm.plan_id = mp.id
+           WHERE ${cmDate.clause}`,
+          cmDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT cm.id, u.name as customer_name, u.mobile as customer_mobile,
+                  mp.name as plan_name, mp.price, cm.start_date, cm.end_date, cm.status
+           FROM customer_memberships cm
+           JOIN users u ON cm.user_id = u.id
+           JOIN membership_plans mp ON cm.plan_id = mp.id
+           WHERE ${cmDate.clause}
+           ORDER BY cm.id DESC`,
+          cmDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'coupons': {
+        const cuDate = this.getDateFilter('cu.created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COUNT(cu.id) as total_redemptions,
+            COALESCE(SUM(cu.discount_amount), 0) as total_discount_given
+           FROM coupon_usages cu
+           WHERE ${cuDate.clause}`,
+          cuDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT c.code, c.discount_type, c.discount_value,
+                  COUNT(cu.id) as redemption_count,
+                  COALESCE(SUM(cu.discount_amount), 0) as total_discount
+           FROM coupons c
+           LEFT JOIN coupon_usages cu ON c.id = cu.coupon_id AND ${cuDate.clause}
+           GROUP BY c.id
+           ORDER BY redemption_count DESC`,
+          cuDate.args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'welcomebonus':
+      case 'welcome_bonus': {
+        const bDate = this.getDateFilter('created_at', period, fromDate, toDate);
+        const summary = await db.get(
+          `SELECT 
+            COALESCE(SUM(CASE WHEN type = 'WELCOME_BONUS' THEN amount ELSE 0 END), 0) as issued,
+            COALESCE(SUM(CASE WHEN type = 'REDEMPTION' THEN amount ELSE 0 END), 0) as redeemed,
+            COALESCE(SUM(CASE WHEN type = 'REVERSAL' THEN amount ELSE 0 END), 0) as reversed
+           FROM customer_bonus_transactions
+           WHERE ${bDate.clause}`,
+          bDate.args
+        );
+
+        const rows = await db.query(
+          `SELECT cbt.id, u.name as customer_name, u.mobile, cbt.type, cbt.amount,
+                  cbt.reference_type, cbt.reference_id, cbt.created_at, cbt.status, cbt.description
+           FROM customer_bonus_transactions cbt
+           JOIN users u ON cbt.user_id = u.id
+           WHERE ${this.getDateFilter('cbt.created_at', period, fromDate, toDate).clause}
+           ORDER BY cbt.id DESC LIMIT 300`,
+          this.getDateFilter('cbt.created_at', period, fromDate, toDate).args
+        );
+
+        return { summary, rows };
+      }
+
+      case 'inventory': {
+        const summary = await db.get(
+          `SELECT 
+            COUNT(id) as total_sku,
+            COALESCE(SUM(stock), 0) as total_units_in_stock,
+            COALESCE(SUM(stock * selling_price), 0) as total_stock_value,
+            SUM(CASE WHEN stock <= minimum_stock AND stock > 0 THEN 1 ELSE 0 END) as low_stock_count,
+            SUM(CASE WHEN stock <= 0 THEN 1 ELSE 0 END) as out_of_stock_count
+           FROM products WHERE status = 'ACTIVE'`
+        );
+
+        const rows = await db.query(
+          `SELECT p.id, p.product_code, p.name, c.name as category_name,
+                  p.stock, p.minimum_stock, p.selling_price,
+                  (p.stock * p.selling_price) as stock_valuation,
+                  p.status
+           FROM products p
+           LEFT JOIN categories c ON p.category_id = c.id
+           ORDER BY p.stock ASC LIMIT 500`
+        );
+
+        return { summary, rows };
+      }
+
+      default:
+        throw new Error(`Invalid report type: "${type}". Supported: sales, orders, payments, customers, products, categories, brands, membership, coupons, welcomebonus, inventory.`);
+    }
   }
 }
 

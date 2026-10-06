@@ -46,8 +46,8 @@ export async function createStaff(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
     const userRes = await db.run(
-      `INSERT INTO users (uuid, mobile, password_hash, name, email, status, mobile_verified)
-       VALUES (?, ?, ?, ?, ?, 'ACTIVE', 1)`,
+      `INSERT INTO users (uuid, mobile, password_hash, name, email, account_type, status, mobile_verified)
+       VALUES (?, ?, ?, ?, ?, 'INTERNAL', 'ACTIVE', 1)`,
       [crypto.randomUUID(), cleanMobile, hash, name, email || null]
     );
 
