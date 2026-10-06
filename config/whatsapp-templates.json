@@ -1,0 +1,212 @@
+{
+  "otp": {
+    "login": {
+      "template_name": "otp_login",
+      "language": "en",
+      "body": "Your {{store_name}} login OTP is {{otp_code}}. Valid for 10 minutes. Please do not share this with anyone.",
+      "variables": ["store_name", "otp_code"],
+      "enabled": true
+    },
+    "registration": {
+      "template_name": "otp_registration",
+      "language": "en",
+      "body": "Welcome to {{store_name}}! Use OTP {{otp_code}} to complete your registration.",
+      "variables": ["store_name", "otp_code"],
+      "enabled": true
+    },
+    "forgot_password": {
+      "template_name": "otp_forgot_password",
+      "language": "en",
+      "body": "Your password reset OTP for {{store_name}} is {{otp_code}}. Do not share this OTP.",
+      "variables": ["store_name", "otp_code"],
+      "enabled": true
+    },
+    "mobile_verification": {
+      "template_name": "otp_verify_mobile",
+      "language": "en",
+      "body": "Your mobile verification OTP for {{store_name}} is {{otp_code}}.",
+      "variables": ["store_name", "otp_code"],
+      "enabled": true
+    }
+  },
+  "greeting": {
+    "welcome": {
+      "template_name": "greeting_welcome",
+      "language": "en",
+      "body": "Hello {{customer_name}}, welcome to {{store_name}}! Your account is ready. Enjoy fresh groceries delivered to your door.",
+      "variables": ["customer_name", "store_name"],
+      "enabled": true
+    },
+    "birthday": {
+      "template_name": "greeting_birthday",
+      "language": "en",
+      "body": "🎉 Happy Birthday {{customer_name}}! Wishing you joy and prosperity from everyone at {{store_name}}. Enjoy a special shopping experience today!",
+      "variables": ["customer_name", "store_name"],
+      "enabled": true
+    },
+    "anniversary": {
+      "template_name": "greeting_anniversary",
+      "language": "en",
+      "body": "💐 Happy Anniversary {{customer_name}}! Warmest wishes on your special milestone from the team at {{store_name}}.",
+      "variables": ["customer_name", "store_name"],
+      "enabled": true
+    }
+  },
+  "orders": {
+    "placed": {
+      "template_name": "order_placed_customer",
+      "language": "en",
+      "body": "Hi {{customer_name}}, your order #{{order_number}} for ₹{{grand_total}} has been placed successfully at {{store_name}} via {{payment_method}}.",
+      "variables": ["customer_name", "order_number", "grand_total", "store_name", "payment_method"],
+      "enabled": true
+    },
+    "confirmed": {
+      "template_name": "order_confirmed_customer",
+      "language": "en",
+      "body": "Great news {{customer_name}}! Your order #{{order_number}} has been confirmed and is being prepped. Delivery area: {{delivery_area}} - {{delivery_sub_area}}.",
+      "variables": ["customer_name", "order_number", "delivery_area", "delivery_sub_area"],
+      "enabled": true
+    },
+    "processing": {
+      "template_name": "order_processing_customer",
+      "language": "en",
+      "body": "Your order #{{order_number}} is currently being packed with utmost care at {{store_name}}.",
+      "variables": ["order_number", "store_name"],
+      "enabled": true
+    },
+    "ready": {
+      "template_name": "order_ready_customer",
+      "language": "en",
+      "body": "Your order #{{order_number}} is packed and ready for dispatch.",
+      "variables": ["order_number"],
+      "enabled": true
+    },
+    "out_for_delivery": {
+      "template_name": "order_out_for_delivery",
+      "language": "en",
+      "body": "Order #{{order_number}} is out for delivery to {{delivery_address}}! Slot: {{delivery_slot}}.",
+      "variables": ["order_number", "delivery_address", "delivery_slot"],
+      "enabled": true
+    },
+    "delivered": {
+      "template_name": "order_delivered_customer",
+      "language": "en",
+      "body": "Order #{{order_number}} has been delivered successfully! Thank you for choosing {{store_name}}.",
+      "variables": ["order_number", "store_name"],
+      "enabled": true
+    },
+    "cancelled": {
+      "template_name": "order_cancelled_customer",
+      "language": "en",
+      "body": "Order #{{order_number}} has been cancelled. Any applicable refunds or welcome bonus reversals have been processed.",
+      "variables": ["order_number"],
+      "enabled": true
+    },
+    "returned": {
+      "template_name": "order_returned_customer",
+      "language": "en",
+      "body": "Order #{{order_number}} return has been recorded. Our team will contact you shortly.",
+      "variables": ["order_number"],
+      "enabled": true
+    }
+  },
+  "payments": {
+    "initiated": {
+      "template_name": "payment_initiated",
+      "language": "en",
+      "body": "Payment attempt initiated for Order #{{order_number}} of amount ₹{{amount}}.",
+      "variables": ["order_number", "amount"],
+      "enabled": true
+    },
+    "success": {
+      "template_name": "payment_success_customer",
+      "language": "en",
+      "body": "Payment of ₹{{amount}} for Order #{{order_number}} via {{payment_method}} was successful. Reference: {{transaction_ref}}.",
+      "variables": ["amount", "order_number", "payment_method", "transaction_ref"],
+      "enabled": true
+    },
+    "failed": {
+      "template_name": "payment_failed_customer",
+      "language": "en",
+      "body": "Payment for Order #{{order_number}} failed. Please retry your payment or choose Cash on Delivery.",
+      "variables": ["order_number"],
+      "enabled": true
+    },
+    "refunded": {
+      "template_name": "payment_refunded_customer",
+      "language": "en",
+      "body": "Refund of ₹{{amount}} for Order #{{order_number}} has been processed.",
+      "variables": ["amount", "order_number"],
+      "enabled": true
+    }
+  },
+  "membership": {
+    "activated": {
+      "template_name": "membership_activated",
+      "language": "en",
+      "body": "Welcome to VIP! Your {{membership_name}} membership is active until {{expiry_date}}. Enjoy free delivery and exclusive member discounts!",
+      "variables": ["membership_name", "expiry_date"],
+      "enabled": true
+    },
+    "expiring": {
+      "template_name": "membership_expiring",
+      "language": "en",
+      "body": "Your {{membership_name}} membership at {{store_name}} expires on {{expiry_date}}. Renew today to keep your perks!",
+      "variables": ["membership_name", "store_name", "expiry_date"],
+      "enabled": true
+    },
+    "expired": {
+      "template_name": "membership_expired",
+      "language": "en",
+      "body": "Your {{membership_name}} membership has expired. Visit {{store_name}} to renew.",
+      "variables": ["membership_name", "store_name"],
+      "enabled": true
+    }
+  },
+  "welcome_bonus": {
+    "received": {
+      "template_name": "welcome_bonus_received",
+      "language": "en",
+      "body": "🎉 Congratulations! ₹{{bonus_amount}} welcome bonus credited to your account. Use it on your next grocery order above ₹{{min_order}}!",
+      "variables": ["bonus_amount", "min_order"],
+      "enabled": true
+    },
+    "redeemed": {
+      "template_name": "welcome_bonus_redeemed",
+      "language": "en",
+      "body": "₹{{bonus_amount}} welcome bonus was applied to Order #{{order_number}}. Happy savings!",
+      "variables": ["bonus_amount", "order_number"],
+      "enabled": true
+    },
+    "expired": {
+      "template_name": "welcome_bonus_expired",
+      "language": "en",
+      "body": "Your promotional credit of ₹{{bonus_amount}} has expired.",
+      "variables": ["bonus_amount"],
+      "enabled": true
+    }
+  },
+  "admin": {
+    "new_order": {
+      "template_name": "admin_new_order",
+      "language": "en",
+      "body": "🚨 [ADMIN ALERT] New {{source}} Order #{{order_number}} received! Amount: ₹{{grand_total}} | Customer: {{customer_name}} ({{customer_phone}}) | Area: {{delivery_area}} - {{delivery_sub_area}}.",
+      "variables": ["source", "order_number", "grand_total", "customer_name", "customer_phone", "delivery_area", "delivery_sub_area"],
+      "enabled": true
+    },
+    "payment_failure": {
+      "template_name": "admin_payment_failure",
+      "language": "en",
+      "body": "⚠️ [ADMIN ALERT] Payment failed for Order #{{order_number}}. Customer: {{customer_phone}}.",
+      "variables": ["order_number", "customer_phone"],
+      "enabled": true
+    },
+    "order_cancelled": {
+      "template_name": "admin_order_cancelled",
+      "language": "en",
+      "body": "⚠️ [ADMIN ALERT] Order #{{order_number}} was cancelled. Check dashboard.",
+      "variables": ["order_number"],
+      "enabled": true
+    }
+  }
+}

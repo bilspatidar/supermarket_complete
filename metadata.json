@@ -1,0 +1,6 @@
+{
+  "name": "Supermarket E-Commerce & In-House POS Platform",
+  "description": "Production supermarket platform with customer web & mobile store, in-house POS, delivery area routing, membership, welcome bonus, inventory ledger, and centralized WhatsApp notifications.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

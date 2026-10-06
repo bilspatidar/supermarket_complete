@@ -1,0 +1,18 @@
+{
+  "appId": "com.freshmart.supermarket",
+  "appName": "FreshMart Supermarket",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "Geolocation": {
+      "permissions": ["location"]
+    },
+    "SpeechRecognition": {
+      "language": "en-IN"
+    }
+  }
+}
