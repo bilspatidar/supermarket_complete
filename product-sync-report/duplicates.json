@@ -1,0 +1,772 @@
+[
+  {
+    "identity": "2020BUTTERCOOKIESRS5|5.00",
+    "name": "20-20 BUTTER COOKIES RS5",
+    "sales_price": 5,
+    "stock": 8,
+    "excel_row": 3
+  },
+  {
+    "identity": "420GOLDPUPAPAD200G|60.00",
+    "name": "420 GOLD PU. PAPAD 200G",
+    "sales_price": 60,
+    "stock": 25,
+    "excel_row": 12
+  },
+  {
+    "identity": "420PAPADKATRAN200G|50.00",
+    "name": "420 PAPAD KATRAN 200G",
+    "sales_price": 50,
+    "stock": 11,
+    "excel_row": 20
+  },
+  {
+    "identity": "AASHIRWADRUSK375G|55.00",
+    "name": "AASHIRWAD RUSK 375G",
+    "sales_price": 55,
+    "stock": 11,
+    "excel_row": 75
+  },
+  {
+    "identity": "AMLACANDYSWEET100G|40.00",
+    "name": "AMLA CANDY SWEET 100G",
+    "sales_price": 40,
+    "stock": 5,
+    "excel_row": 121
+  },
+  {
+    "identity": "AMULBUTTERRS7|7.00",
+    "name": "AMUL BUTTER RS7",
+    "sales_price": 7,
+    "stock": 100,
+    "excel_row": 130
+  },
+  {
+    "identity": "AROMEROSE6ML|90.00",
+    "name": "AROME ROSE 6ML",
+    "sales_price": 90,
+    "stock": 1,
+    "excel_row": 195
+  },
+  {
+    "identity": "BALAJIWAFERSRS10|10.00",
+    "name": "BALAJI WAFERS RS10",
+    "sales_price": 10,
+    "stock": 137,
+    "excel_row": 266
+  },
+  {
+    "identity": "BALAJIWAFERSRS5|5.00",
+    "name": "BALAJI WAFERS RS5",
+    "sales_price": 5,
+    "stock": 79,
+    "excel_row": 270
+  },
+  {
+    "identity": "BRITANNIAMILKBIKISBISRS10|10.00",
+    "name": "BRITANNIA MILK BIKIS BIS. RS10",
+    "sales_price": 10,
+    "stock": 5,
+    "excel_row": 371
+  },
+  {
+    "identity": "BRITANNIATREATORANGERS10|10.00",
+    "name": "BRITANNIA TREAT ORANGE RS10",
+    "sales_price": 10,
+    "stock": 8,
+    "excel_row": 381
+  },
+  {
+    "identity": "BRUCOFFEERS10|10.00",
+    "name": "BRU COFFEE RS10",
+    "sales_price": 10,
+    "stock": 24,
+    "excel_row": 387
+  },
+  {
+    "identity": "BUSHLEMONYELLOWPOWDER100G|80.00",
+    "name": "BUSH LEMON YELLOW POWDER 100GM",
+    "sales_price": 80,
+    "stock": 4,
+    "excel_row": 398
+  },
+  {
+    "identity": "BUSHORANGERED100G|80.00",
+    "name": "BUSH ORANGE RED 100GM",
+    "sales_price": 80,
+    "stock": -3,
+    "excel_row": 400
+  },
+  {
+    "identity": "BUSHORANGERED100G|80.00",
+    "name": "BUSH ORANGE RED 100GM",
+    "sales_price": 80,
+    "stock": 5,
+    "excel_row": 401
+  },
+  {
+    "identity": "CDMCHOCOLATERS5|5.00",
+    "name": "CDM CHOCOLATE RS5",
+    "sales_price": 5,
+    "stock": 1,
+    "excel_row": 461
+  },
+  {
+    "identity": "CHANAPAPAD200G|55.00",
+    "name": "CHANA PAPAD 200GM",
+    "sales_price": 55,
+    "stock": 29,
+    "excel_row": 489
+  },
+  {
+    "identity": "CHAROLI20G|40.00",
+    "name": "CHAROLI 20GM",
+    "sales_price": 40,
+    "stock": -33,
+    "excel_row": 497
+  },
+  {
+    "identity": "CHAROLI20G|40.00",
+    "name": "CHAROLI 20GM",
+    "sales_price": 40,
+    "stock": 12,
+    "excel_row": 498
+  },
+  {
+    "identity": "CLINICPLUSHAIROIL200ML|120.00",
+    "name": "CLINIC PLUS HAIR OIL 200ML",
+    "sales_price": 120,
+    "stock": 4,
+    "excel_row": 569
+  },
+  {
+    "identity": "CLINICPLUSSHAMPOO175ML|135.00",
+    "name": "CLINIC PLUS SHAMPOO 175ML",
+    "sales_price": 135,
+    "stock": 6,
+    "excel_row": 571
+  },
+  {
+    "identity": "DAAWATBASMATIRICEROZANAMINI5KG|325.00",
+    "name": "DAAWAT BASMATI RICE ROZANA MINI 5KG",
+    "sales_price": 325,
+    "stock": 7,
+    "excel_row": 681
+  },
+  {
+    "identity": "DABURREDPASTE300G|180.00",
+    "name": "DABUR RED PASTE 300G",
+    "sales_price": 180,
+    "stock": 12,
+    "excel_row": 715
+  },
+  {
+    "identity": "DANTKANTIPASTE300G|158.00",
+    "name": "DANT KANTI PASTE 300G",
+    "sales_price": 158,
+    "stock": 7,
+    "excel_row": 734
+  },
+  {
+    "identity": "DIETCOKE330ML|50.00",
+    "name": "DIET COKE 330ML",
+    "sales_price": 50,
+    "stock": 5,
+    "excel_row": 815
+  },
+  {
+    "identity": "DOMSGEOMITIBOX|90.00",
+    "name": "DOMS GEOMITI BOX",
+    "sales_price": 90,
+    "stock": 1,
+    "excel_row": 834
+  },
+  {
+    "identity": "DOMSWAXCRAYONS|15.00",
+    "name": "DOMS WAX CRAYONS",
+    "sales_price": 15,
+    "stock": 10,
+    "excel_row": 856
+  },
+  {
+    "identity": "FEACHARMASALA500G|125.00",
+    "name": "FE ACHAR MASALA 500GM",
+    "sales_price": 125,
+    "stock": 15,
+    "excel_row": 1053
+  },
+  {
+    "identity": "FIAMAGELBAR5UNIT125G|299.00",
+    "name": "FIAMA GEL BAR 5UNIT*125GM",
+    "sales_price": 299,
+    "stock": 15,
+    "excel_row": 1073
+  },
+  {
+    "identity": "FINGERSMALL250G|25.00",
+    "name": "FINGER SMALL 250GM",
+    "sales_price": 25,
+    "stock": -1,
+    "excel_row": 1081
+  },
+  {
+    "identity": "FOODESSENCEVANILLA20ML|30.00",
+    "name": "FOOD ESSENCE VANILLA 20ML",
+    "sales_price": 30,
+    "stock": 1,
+    "excel_row": 1099
+  },
+  {
+    "identity": "FORTUNERICEBRAINOIL870G|170.00",
+    "name": "FORTUNE RICE BRAIN OIL 870G",
+    "sales_price": 170,
+    "stock": 24,
+    "excel_row": 1108
+  },
+  {
+    "identity": "FORTUNESOYAOIL840G|150.00",
+    "name": "FORTUNE SOYA OIL 840G",
+    "sales_price": 150,
+    "stock": -2,
+    "excel_row": 1112
+  },
+  {
+    "identity": "FORTUNESOYAOIL840G|150.00",
+    "name": "FORTUNE SOYA OIL 840G",
+    "sales_price": 150,
+    "stock": 54,
+    "excel_row": 1113
+  },
+  {
+    "identity": "FREGHTFORWORDING5|0.00",
+    "name": "FREGHT & FORWORDING 5%",
+    "sales_price": 0,
+    "stock": 5,
+    "excel_row": 1122
+  },
+  {
+    "identity": "GANGWALDALIYA500G|30.00",
+    "name": "GANGWAL DALIYA 500GM",
+    "sales_price": 30,
+    "stock": 46,
+    "excel_row": 1170
+  },
+  {
+    "identity": "GANGWALIDLIMIX500G|85.00",
+    "name": "GANGWAL IDLI MIX 500GM",
+    "sales_price": 85,
+    "stock": 21,
+    "excel_row": 1173
+  },
+  {
+    "identity": "GARNIERFWTURBOBRIGHT100G|300.00",
+    "name": "GARNIER FW TURBO BRIGHT 100G",
+    "sales_price": 300,
+    "stock": 1,
+    "excel_row": 1198
+  },
+  {
+    "identity": "GOODDAYBUTTERJEERARS20|20.00",
+    "name": "GOOD DAY BUTTER JEERA RS20",
+    "sales_price": 20,
+    "stock": 20,
+    "excel_row": 1346
+  },
+  {
+    "identity": "GOODDAYFRUITNUT450G|99.00",
+    "name": "GOOD DAY FRUIT&NUT 450G",
+    "sales_price": 99,
+    "stock": 1,
+    "excel_row": 1354
+  },
+  {
+    "identity": "GOORALTOOTHBRUSH|30.00",
+    "name": "GOORAL TOOTHBRUSH",
+    "sales_price": 30,
+    "stock": 14,
+    "excel_row": 1364
+  },
+  {
+    "identity": "GURUJISENDHANAMAK100G|10.00",
+    "name": "GURUJI SENDHA NAMAK 100 GM",
+    "sales_price": 10,
+    "stock": 41,
+    "excel_row": 1387
+  },
+  {
+    "identity": "HARSHKESARMILKMASALA100G|200.00",
+    "name": "HARSH KESAR MILK MASALA 100GM",
+    "sales_price": 200,
+    "stock": 12,
+    "excel_row": 1470
+  },
+  {
+    "identity": "HERSHEYSSYRUPCHOCORS10|10.00",
+    "name": "HERSHEY'S SYRUP CHOCO RS10",
+    "sales_price": 10,
+    "stock": 44,
+    "excel_row": 1482
+  },
+  {
+    "identity": "HIGHLIGHTERRS25|25.00",
+    "name": "HIGH LIGHTER RS25",
+    "sales_price": 25,
+    "stock": 1,
+    "excel_row": 1492
+  },
+  {
+    "identity": "HIMALAYABABYPOWDER100G|105.00",
+    "name": "HIMALAYA BABY POWDER 100GM",
+    "sales_price": 105,
+    "stock": 1,
+    "excel_row": 1502
+  },
+  {
+    "identity": "HONEYGOLDTEA1KG|410.00",
+    "name": "HONEY GOLD TEA 1KG",
+    "sales_price": 410,
+    "stock": 3,
+    "excel_row": 1551
+  },
+  {
+    "identity": "INDIAGATEROZANARICE1KG|100.00",
+    "name": "INDIA GATE ROZANA RICE 1KG",
+    "sales_price": 100,
+    "stock": 1,
+    "excel_row": 1582
+  },
+  {
+    "identity": "INDORIPERMAL500G|48.00",
+    "name": "INDORI PERMAL 500G",
+    "sales_price": 48,
+    "stock": 18,
+    "excel_row": 1585
+  },
+  {
+    "identity": "JAORAGOLDMAIDA500G|25.00",
+    "name": "JAORA GOLD MAIDA 500GM",
+    "sales_price": 25,
+    "stock": 33,
+    "excel_row": 1614
+  },
+  {
+    "identity": "JAORAGOLDSUJI500G|26.00",
+    "name": "JAORA GOLD SUJI 500GM",
+    "sales_price": 26,
+    "stock": 47,
+    "excel_row": 1617
+  },
+  {
+    "identity": "JOHNSONSBABYPOWDER50G|63.00",
+    "name": "JOHNSON'S BABY POWDER 50G",
+    "sales_price": 63,
+    "stock": 5,
+    "excel_row": 1638
+  },
+  {
+    "identity": "JOYCREAMHA200ML|199.00",
+    "name": "JOY CREAM H&A 200ML",
+    "sales_price": 199,
+    "stock": 3,
+    "excel_row": 1648
+  },
+  {
+    "identity": "JOYFWLEMON150ML|199.00",
+    "name": "JOY FW LEMON 150ML",
+    "sales_price": 199,
+    "stock": 1,
+    "excel_row": 1661
+  },
+  {
+    "identity": "KABULICHANA500G|60.00",
+    "name": "KABULI CHANA 500G",
+    "sales_price": 60,
+    "stock": 57,
+    "excel_row": 1694
+  },
+  {
+    "identity": "KAJUTUKDI100G|95.00",
+    "name": "KAJU TUKDI 100G",
+    "sales_price": 95,
+    "stock": 41,
+    "excel_row": 1702
+  },
+  {
+    "identity": "KELLOGGSCHOCOSRS10|10.00",
+    "name": "KELLOGG'S CHOCOS RS10",
+    "sales_price": 10,
+    "stock": 52,
+    "excel_row": 1729
+  },
+  {
+    "identity": "KESHKANTISHAMPOOALOE450ML|170.00",
+    "name": "KESH KANTI SHAMPOO ALOE 450ML",
+    "sales_price": 170,
+    "stock": 2,
+    "excel_row": 1745
+  },
+  {
+    "identity": "KISHMISHSP100G|55.00",
+    "name": "KISHMISH SP 100G",
+    "sales_price": 55,
+    "stock": 4,
+    "excel_row": 1803
+  },
+  {
+    "identity": "KITKATRS20|20.00",
+    "name": "KIT KAT RS20",
+    "sales_price": 20,
+    "stock": 62,
+    "excel_row": 1818
+  },
+  {
+    "identity": "KOHINOORBASMATIRICEDUBAR5KG|600.00",
+    "name": "KOHINOOR BASMATI RICE DUBAR 5KG",
+    "sales_price": 600,
+    "stock": 4,
+    "excel_row": 1835
+  },
+  {
+    "identity": "KOHINOORBASMATIRICETIBAR1KG|130.00",
+    "name": "KOHINOOR BASMATI RICE TIBAR 1KG",
+    "sales_price": 130,
+    "stock": 18,
+    "excel_row": 1837
+  },
+  {
+    "identity": "KRAZYLINE15G|20.00",
+    "name": "KRAZY LINE 15G",
+    "sales_price": 20,
+    "stock": 2,
+    "excel_row": 1854
+  },
+  {
+    "identity": "KRITISOYAOIL900ML|155.00",
+    "name": "KRITI SOYA OIL 900ML",
+    "sales_price": 155,
+    "stock": 5,
+    "excel_row": 1864
+  },
+  {
+    "identity": "LIONKALMIDATES400G|270.00",
+    "name": "LION KALMI DATES 400G",
+    "sales_price": 270,
+    "stock": 1,
+    "excel_row": 1910
+  },
+  {
+    "identity": "LOTTELOLLYPOPRS5|5.00",
+    "name": "LOTTE LOLLY POP RS5",
+    "sales_price": 5,
+    "stock": 48,
+    "excel_row": 1994
+  },
+  {
+    "identity": "MANTRAMORINGAPOWDER50G|45.00",
+    "name": "MANTRA MORINGA POWDER 50G",
+    "sales_price": 45,
+    "stock": 4,
+    "excel_row": 2099
+  },
+  {
+    "identity": "MMCASHEWSW320250G|275.00",
+    "name": "MM CASHEWS W320 250G",
+    "sales_price": 275,
+    "stock": 44,
+    "excel_row": 2180
+  },
+  {
+    "identity": "MMRAISIN250G|160.00",
+    "name": "MM RAISIN 250G",
+    "sales_price": 160,
+    "stock": 8,
+    "excel_row": 2186
+  },
+  {
+    "identity": "MUNGPAPAD200G|50.00",
+    "name": "MUNG PAPAD 200G",
+    "sales_price": 50,
+    "stock": 1,
+    "excel_row": 2245
+  },
+  {
+    "identity": "NAMKEEN500G|120.00",
+    "name": "NAMKEEN 500G",
+    "sales_price": 120,
+    "stock": 47,
+    "excel_row": 2273
+  },
+  {
+    "identity": "NESCAFECLASSICRS2|2.00",
+    "name": "NESCAFE CLASSIC RS2",
+    "sales_price": 2,
+    "stock": 1971,
+    "excel_row": 2305
+  },
+  {
+    "identity": "POOJANSAMAGRI|60.00",
+    "name": "POOJAN SAMAGRI",
+    "sales_price": 60,
+    "stock": 1,
+    "excel_row": 2605
+  },
+  {
+    "identity": "PTNOTEBOOKRS55|42.00",
+    "name": "PT. NOTE BOOK RS55",
+    "sales_price": 42,
+    "stock": 10,
+    "excel_row": 2689
+  },
+  {
+    "identity": "PUSHPACHARMASALA200G|65.00",
+    "name": "PUSHP ACHAR MASALA 200G",
+    "sales_price": 65,
+    "stock": 1,
+    "excel_row": 2735
+  },
+  {
+    "identity": "PUSHPDHANIYAPOWDER200G|70.00",
+    "name": "PUSHP DHANIYA POWDER 200G",
+    "sales_price": 70,
+    "stock": 1,
+    "excel_row": 2749
+  },
+  {
+    "identity": "PUSHPDHANIYAPOWDER200G|70.00",
+    "name": "PUSHP DHANIYA POWDER 200G",
+    "sales_price": 70,
+    "stock": 8,
+    "excel_row": 2750
+  },
+  {
+    "identity": "PUSHPHALDIPOWDER500G|155.00",
+    "name": "PUSHP HALDI POWDER 500GM",
+    "sales_price": 155,
+    "stock": 14,
+    "excel_row": 2758
+  },
+  {
+    "identity": "PUSHPMIRCHPOWDER200G|105.00",
+    "name": "PUSHP MIRCH POWDER 200GM",
+    "sales_price": 105,
+    "stock": 14,
+    "excel_row": 2782
+  },
+  {
+    "identity": "RAI250G|30.00",
+    "name": "RAI 250G",
+    "sales_price": 30,
+    "stock": -3,
+    "excel_row": 2797
+  },
+  {
+    "identity": "RAJMALAL500G|75.00",
+    "name": "RAJMA LAL 500G",
+    "sales_price": 75,
+    "stock": 13,
+    "excel_row": 2811
+  },
+  {
+    "identity": "RAMSONSDEO200ML|199.00",
+    "name": "RAMSONS DEO 200ML",
+    "sales_price": 199,
+    "stock": 3,
+    "excel_row": 2826
+  },
+  {
+    "identity": "RANIGROUNDNUTOIL435KG|960.00",
+    "name": "RANI GROUNDNUT OIL 4.35KG",
+    "sales_price": 960,
+    "stock": -1,
+    "excel_row": 2830
+  },
+  {
+    "identity": "RANIGROUNDNUTOIL870G|195.00",
+    "name": "RANI GROUNDNUT OIL 870GM",
+    "sales_price": 195,
+    "stock": 2,
+    "excel_row": 2833
+  },
+  {
+    "identity": "REDLABLE500G|260.00",
+    "name": "RED LABLE 500GM",
+    "sales_price": 260,
+    "stock": 5,
+    "excel_row": 2858
+  },
+  {
+    "identity": "RICHVALLEEYCASHEW250G|275.00",
+    "name": "RICH VALLEEY CASHEW 250GM",
+    "sales_price": 275,
+    "stock": 2,
+    "excel_row": 2869
+  },
+  {
+    "identity": "RICHVALLEYWALNUT500G|430.00",
+    "name": "RICH VALLEY WALNUT 500GM",
+    "sales_price": 430,
+    "stock": 8,
+    "excel_row": 2874
+  },
+  {
+    "identity": "SACHAMOTISABUDANA1KG|90.00",
+    "name": "SACHAMOTI SABUDANA 1KG",
+    "sales_price": 90,
+    "stock": 47,
+    "excel_row": 2911
+  },
+  {
+    "identity": "SACHAMOTISABUDANA500G|48.00",
+    "name": "SACHAMOTI SABUDANA 500G",
+    "sales_price": 48,
+    "stock": 23,
+    "excel_row": 2913
+  },
+  {
+    "identity": "SAFFOLAOATSTOMATO38G|20.00",
+    "name": "SAFFOLA OATS TOMATO 38G",
+    "sales_price": 20,
+    "stock": 20,
+    "excel_row": 2940
+  },
+  {
+    "identity": "SAJIFUL250G|30.00",
+    "name": "SAJI FUL 250G",
+    "sales_price": 30,
+    "stock": 2,
+    "excel_row": 2948
+  },
+  {
+    "identity": "SARGAMDETPOWDER5KG|370.00",
+    "name": "SARGAM DET.POWDER 5KG",
+    "sales_price": 370,
+    "stock": 2,
+    "excel_row": 2976
+  },
+  {
+    "identity": "SOPHBADWANILOOSE|320.00",
+    "name": "SOPH BADWANI LOOSE",
+    "sales_price": 320,
+    "stock": 5,
+    "excel_row": 3092
+  },
+  {
+    "identity": "SOYABADILOOSE|140.00",
+    "name": "SOYA BADI LOOSE",
+    "sales_price": 140,
+    "stock": 20,
+    "excel_row": 3106
+  },
+  {
+    "identity": "SPICYCHEESE80G|53.00",
+    "name": "SPICY CHEESE 80G",
+    "sales_price": 53,
+    "stock": 18,
+    "excel_row": 3111
+  },
+  {
+    "identity": "STAYFREEXL6PAD|42.00",
+    "name": "STAYFREE XL 6PAD",
+    "sales_price": 42,
+    "stock": 3,
+    "excel_row": 3146
+  },
+  {
+    "identity": "SUMICOJOYLAND330G|135.00",
+    "name": "SUMICO JOYLAND 330G",
+    "sales_price": 135,
+    "stock": 1,
+    "excel_row": 3193
+  },
+  {
+    "identity": "SUNFEASTBOUNCEBISCUITMRP5|4.50",
+    "name": "SUNFEAST BOUNCE BISCUIT MRP5",
+    "sales_price": 4.5,
+    "stock": 12,
+    "excel_row": 3201
+  },
+  {
+    "identity": "SURFEXCELBAR250G|40.00",
+    "name": "SURF EXCEL BAR 250G",
+    "sales_price": 40,
+    "stock": 59,
+    "excel_row": 3226
+  },
+  {
+    "identity": "TAAZATEA250G|53.00",
+    "name": "TAAZA TEA 250G",
+    "sales_price": 53,
+    "stock": 7,
+    "excel_row": 3253
+  },
+  {
+    "identity": "TILBLACK100G|35.00",
+    "name": "TIL BLACK 100G",
+    "sales_price": 35,
+    "stock": 2,
+    "excel_row": 3326
+  },
+  {
+    "identity": "TOPSNOODLES650G|80.00",
+    "name": "TOPS NOODLES 650G",
+    "sales_price": 80,
+    "stock": 4,
+    "excel_row": 3346
+  },
+  {
+    "identity": "TULIPSFACIALTISSUES100N|70.00",
+    "name": "TULIPS FACIAL TISSUES 100N",
+    "sales_price": 70,
+    "stock": 6,
+    "excel_row": 3367
+  },
+  {
+    "identity": "TULIPSTOOTHPICKS|30.00",
+    "name": "TULIPS TOOTH PICKS",
+    "sales_price": 30,
+    "stock": 9,
+    "excel_row": 3372
+  },
+  {
+    "identity": "UTTAMGULABJAMUN1KG|180.00",
+    "name": "UTTAM GULAB JAMUN 1KG",
+    "sales_price": 180,
+    "stock": 4,
+    "excel_row": 3415
+  },
+  {
+    "identity": "VERMICELLILOOSE|80.00",
+    "name": "VERMICELLI LOOSE",
+    "sales_price": 80,
+    "stock": 5,
+    "excel_row": 3457
+  },
+  {
+    "identity": "WATERSTRAINERPLASTIC|25.00",
+    "name": "WATER STRAINER PLASTIC",
+    "sales_price": 25,
+    "stock": 26,
+    "excel_row": 3523
+  },
+  {
+    "identity": "WEIKFIELDBAKINGPOWDER100G|37.00",
+    "name": "WEIKFIELD BAKING POWDER 100G",
+    "sales_price": 37,
+    "stock": 10,
+    "excel_row": 3526
+  },
+  {
+    "identity": "WILDSTONEDEO150ML|199.00",
+    "name": "WILD STONE DEO 150ML",
+    "sales_price": 199,
+    "stock": 3,
+    "excel_row": 3561
+  },
+  {
+    "identity": "ZANDUPARASTIKADI30N|115.00",
+    "name": "ZANDU PARAS TIKADI 30N",
+    "sales_price": 115,
+    "stock": 10,
+    "excel_row": 3602
+  }
+]

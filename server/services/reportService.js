@@ -33,6 +33,167 @@ class ReportService {
     return { clause: `DATE(${colName}) >= DATE('now', '-30 days')`, args: [] };
   }
 
+
+    /**
+   * Get customer statistics for authenticated user
+   */
+    async getCustomerStats(userId) {
+      const customer = await db.get(
+        `
+        SELECT
+          u.id,
+          u.name,
+          u.mobile,
+          u.email,
+          u.account_type,
+          u.status,
+          u.profile_image,
+          u.dob,
+          u.anniversary_date,
+          u.created_at,
+          u.last_login_at
+        FROM users u
+        WHERE u.id = ?
+        LIMIT 1
+        `,
+        [userId]
+      );
+  
+      if (!customer) {
+        return null;
+      }
+  
+      const orderStats = await db.get(
+        `
+        SELECT
+          COUNT(id) AS total_orders,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN order_status != 'CANCELLED'
+                THEN grand_total
+                ELSE 0
+              END
+            ),
+            0
+          ) AS total_spent
+        FROM orders
+        WHERE user_id = ?
+        `,
+        [userId]
+      );
+  
+      const membership = await db.get(
+        `
+        SELECT
+          cm.id,
+          cm.plan_id,
+          cm.start_date,
+          cm.end_date,
+          cm.status,
+          mp.name AS plan_name,
+          mp.price AS plan_price,
+          mp.discount_percent,
+          mp.free_delivery
+        FROM customer_memberships cm
+        LEFT JOIN membership_plans mp
+          ON cm.plan_id = mp.id
+        WHERE cm.user_id = ?
+          AND cm.status = 'ACTIVE'
+          AND cm.end_date >= NOW()
+        ORDER BY cm.end_date DESC
+        LIMIT 1
+        `,
+        [userId]
+      );
+  
+      const bonusStats = await db.get(
+        `
+        SELECT
+          COALESCE(
+            SUM(
+              CASE
+                WHEN type IN ('WELCOME_BONUS', 'ADMIN_CREDIT')
+                     AND status = 'ACTIVE'
+                THEN amount
+                ELSE 0
+              END
+            ),
+            0
+          ) AS credited,
+  
+          COALESCE(
+            SUM(
+              CASE
+                WHEN type IN ('REDEMPTION', 'ADMIN_DEBIT')
+                     AND status = 'ACTIVE'
+                THEN amount
+                ELSE 0
+              END
+            ),
+            0
+          ) AS debited,
+  
+          COALESCE(
+            SUM(
+              CASE
+                WHEN type = 'REVERSAL'
+                     AND status = 'ACTIVE'
+                THEN amount
+                ELSE 0
+              END
+            ),
+            0
+          ) AS reversed
+  
+        FROM customer_bonus_transactions
+        WHERE user_id = ?
+        `,
+        [userId]
+      );
+  
+      const recentOrders = await db.query(
+        `
+        SELECT
+          id,
+          order_number,
+          source,
+          grand_total,
+          payment_method,
+          payment_status,
+          order_status,
+          created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT 5
+        `,
+        [userId]
+      );
+  
+      const credited = Number(bonusStats?.credited || 0);
+      const debited = Number(bonusStats?.debited || 0);
+      const reversed = Number(bonusStats?.reversed || 0);
+  
+      return {
+        customer,
+  
+        orders: {
+          total: Number(orderStats?.total_orders || 0),
+          totalSpent: Number(orderStats?.total_spent || 0),
+          recent: recentOrders,
+        },
+  
+        membership: membership || null,
+  
+        bonus: {
+          credited,
+          debited,
+          reversed,
+          balance: Math.max(0, credited - debited + reversed),
+        },
+      };
+    }
   /**
    * Aggregate Real Data for Admin Dashboard Summary
    */
@@ -67,7 +228,7 @@ class ReportService {
     const membershipStats = await db.get(
       `SELECT 
         COUNT(id) as total_subscribers,
-        SUM(CASE WHEN status = 'ACTIVE' AND end_date >= datetime('now') THEN 1 ELSE 0 END) as active_subscribers
+        SUM(CASE WHEN status = 'ACTIVE' AND end_date >= CURRENT_TIMESTAMP THEN 1 ELSE 0 END) as active_subscribers
        FROM customer_memberships`
     );
 

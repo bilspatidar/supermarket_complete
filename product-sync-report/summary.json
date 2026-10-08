@@ -1,0 +1,18 @@
+{
+  "excel_rows": 3655,
+  "valid_rows": 3655,
+  "invalid_rows": 0,
+  "duplicates_removed": 110,
+  "final_excel_products": 3545,
+  "database_products": 3731,
+  "matched_update": 2702,
+  "new_insert": 843,
+  "delete_candidates": 1021,
+  "database_brands": 1,
+  "excel_unique_brands": 433,
+  "new_brands": 433,
+  "ambiguous_matches": 0,
+  "highest_existing_sp": "SP003886",
+  "first_new_sp": "SP003887",
+  "database_changed": false
+}

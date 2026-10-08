@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { DeliveryProvider } from './context/DeliveryContext.jsx';
@@ -39,16 +39,329 @@ import AdminAudit from './pages/admin/AdminAudit.jsx';
 import AdminHomeSlider from './pages/admin/AdminHomeSlider.jsx';
 import AdminPages from './pages/admin/AdminPages.jsx';
 
+
+function routeFromLocation() {
+  const { pathname, search } = window.location;
+  const params = new URLSearchParams(search);
+
+  // Admin
+  if (pathname === '/admin' || pathname === '/admin/dashboard') {
+    return {
+      route: 'admin-dashboard',
+      params: {},
+    };
+  }
+
+  if (pathname.startsWith('/admin/')) {
+    const adminPath = pathname.replace('/admin/', '');
+
+    const adminRoutes = {
+      pos: 'admin-pos',
+      orders: 'admin-orders',
+      products: 'admin-products',
+      inventory: 'admin-inventory',
+      customers: 'admin-customers',
+      delivery: 'admin-delivery',
+      membership: 'admin-membership',
+      coupons: 'admin-coupons',
+      reports: 'admin-reports',
+      sliders: 'admin-sliders',
+      pages: 'admin-pages',
+      staff: 'admin-staff',
+      settings: 'admin-settings',
+      audit: 'admin-audit',
+    };
+
+    return {
+      route: adminRoutes[adminPath] || 'admin-dashboard',
+      params: {},
+    };
+  }
+
+  // Public
+  if (pathname === '/shop') {
+    return {
+      route: 'shop',
+      params: {
+        category: params.get('category') || undefined,
+        search: params.get('search') || undefined,
+      },
+    };
+  }
+
+  if (pathname.startsWith('/product/')) {
+    return {
+      route: 'product',
+      params: {
+        id: pathname.split('/')[2],
+      },
+    };
+  }
+
+  if (pathname === '/account') {
+    return {
+      route: 'account',
+      params: {},
+    };
+  }
+
+  if (pathname === '/checkout') {
+    return {
+      route: 'checkout',
+      params: {},
+    };
+  }
+
+  if (pathname === '/login') {
+    return {
+      route: 'login',
+      params: {},
+    };
+  }
+
+  if (pathname === '/membership') {
+    return {
+      route: 'membership',
+      params: {},
+    };
+  }
+
+  if (pathname === '/contact') {
+    return {
+      route: 'contact',
+      params: {},
+    };
+  }
+
+  if (pathname === '/about') {
+    return {
+      route: 'about',
+      params: {},
+    };
+  }
+
+  if (pathname === '/delivery-policy') {
+    return {
+      route: 'delivery-policy',
+      params: {},
+    };
+  }
+
+  if (pathname === '/refund-cancellation') {
+    return {
+      route: 'refund-cancellation',
+      params: {},
+    };
+  }
+
+  if (pathname === '/terms') {
+    return {
+      route: 'terms',
+      params: {},
+    };
+  }
+
+  if (pathname === '/privacy-policy') {
+    return {
+      route: 'privacy-policy',
+      params: {},
+    };
+  }
+
+  if (pathname.startsWith('/cms/')) {
+    return {
+      route: 'cms',
+      params: {
+        slug: pathname.replace('/cms/', ''),
+      },
+    };
+  }
+
+  if (pathname === '/order-success') {
+    return {
+      route: 'order-success',
+      params: {
+        orderNumber: params.get('orderNumber') || '',
+      },
+    };
+  }
+
+  // Default
+  return {
+    route: 'home',
+    params: {},
+  };
+}
+
+
+function locationFromRoute(route, params = {}) {
+  switch (route) {
+    case 'home':
+      return '/';
+
+    case 'shop': {
+      const query = new URLSearchParams();
+
+      if (params.category) {
+        query.set('category', params.category);
+      }
+
+      if (params.search) {
+        query.set('search', params.search);
+      }
+
+      return `/shop${query.toString() ? `?${query.toString()}` : ''}`;
+    }
+
+    case 'product':
+      return `/product/${encodeURIComponent(params.id)}`;
+
+    case 'account':
+      return '/account';
+
+    case 'checkout':
+      return '/checkout';
+
+    case 'login':
+      return '/login';
+
+    case 'membership':
+      return '/membership';
+
+    case 'contact':
+      return '/contact';
+
+    case 'about':
+      return '/about';
+
+    case 'delivery-policy':
+      return '/delivery-policy';
+
+    case 'refund-cancellation':
+      return '/refund-cancellation';
+
+    case 'terms':
+      return '/terms';
+
+    case 'privacy-policy':
+      return '/privacy-policy';
+
+    case 'cms':
+      return `/cms/${encodeURIComponent(params.slug || 'contact')}`;
+
+    case 'order-success': {
+      const query = new URLSearchParams();
+
+      if (params.orderNumber) {
+        query.set('orderNumber', params.orderNumber);
+      }
+
+      return `/order-success${query.toString() ? `?${query.toString()}` : ''}`;
+    }
+
+    case 'admin-dashboard':
+      return '/admin';
+
+    case 'admin-pos':
+      return '/admin/pos';
+
+    case 'admin-orders':
+      return '/admin/orders';
+
+    case 'admin-products':
+      return '/admin/products';
+
+    case 'admin-inventory':
+      return '/admin/inventory';
+
+    case 'admin-customers':
+      return '/admin/customers';
+
+    case 'admin-delivery':
+      return '/admin/delivery';
+
+    case 'admin-membership':
+      return '/admin/membership';
+
+    case 'admin-coupons':
+      return '/admin/coupons';
+
+    case 'admin-reports':
+      return '/admin/reports';
+
+    case 'admin-sliders':
+      return '/admin/sliders';
+
+    case 'admin-pages':
+      return '/admin/pages';
+
+    case 'admin-staff':
+      return '/admin/staff';
+
+    case 'admin-settings':
+      return '/admin/settings';
+
+    case 'admin-audit':
+      return '/admin/audit';
+
+    default:
+      return '/';
+  }
+}
+
 function MainRouter() {
   const { user, isStaff, isAdmin, loading } = useAuth();
-  const [route, setRoute] = useState('home');
-  const [routeParams, setRouteParams] = useState({});
 
-  function navigate(newRoute, params = {}) {
+  const initialLocation = routeFromLocation();
+
+  const [route, setRoute] = useState(initialLocation.route);
+  const [routeParams, setRouteParams] = useState(initialLocation.params);
+
+  function navigate(newRoute, params = {}, replace = false) {
     setRoute(newRoute);
     setRouteParams(params);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const newPath = locationFromRoute(newRoute, params);
+
+    if (replace) {
+      window.history.replaceState(
+        { route: newRoute, params },
+        '',
+        newPath
+      );
+    } else {
+      window.history.pushState(
+        { route: newRoute, params },
+        '',
+        newPath
+      );
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   }
+
+  useEffect(() => {
+    function handlePopState() {
+      const location = routeFromLocation();
+
+      setRoute(location.route);
+      setRouteParams(location.params);
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'auto',
+      });
+    }
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   // Check if route is an Admin/Staff sub-route
   const isAdminRoute = route.startsWith('admin-');

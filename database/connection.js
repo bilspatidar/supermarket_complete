@@ -1,95 +1,105 @@
-import { createClient } from '@libsql/client';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import mysql from "mysql2/promise";
+import "dotenv/config";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const dbPath = process.env.DATABASE_URL || `file:${path.resolve(__dirname, '../database.sqlite')}`;
-
-export const client = createClient({
-  url: dbPath,
+const pool = mysql.createPool({
+  host: process.env.MYSQL_HOST || "127.0.0.1",
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER || "root",
+  password: process.env.MYSQL_PASSWORD || "",
+  database: process.env.MYSQL_DATABASE || "supermarket_db",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  charset: "utf8mb4",
 });
 
-/**
- * Execute a query that returns multiple rows
- */
-export async function query(sql, args = []) {
-  const result = await client.execute({ sql, args });
-  return result.rows || [];
+console.log(
+  `[Database] MySQL: ${process.env.MYSQL_HOST || "127.0.0.1"}:${process.env.MYSQL_PORT || 3306}/${process.env.MYSQL_DATABASE || "supermarket_db"}`
+);
+
+export async function query(sql, params = []) {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 }
 
-/**
- * Execute a query that returns a single row
- */
-export async function get(sql, args = []) {
-  const result = await client.execute({ sql, args });
-  return (result.rows && result.rows.length > 0) ? result.rows[0] : null;
+export async function get(sql, params = []) {
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
 }
 
-/**
- * Execute an INSERT, UPDATE, or DELETE query
- */
-export async function run(sql, args = []) {
-  const result = await client.execute({ sql, args });
+export async function run(sql, params = []) {
+  const [result] = await pool.execute(sql, params);
+
   return {
-    lastInsertRowid: result.lastInsertRowid !== undefined ? Number(result.lastInsertRowid) : null,
-    rowsAffected: result.rowsAffected || 0,
+    changes: result.affectedRows || 0,
+    lastInsertRowid: result.insertId || 0,
+    insertId: result.insertId || 0,
   };
 }
 
-/**
- * Execute multiple raw statements (e.g. migration script)
- */
-export async function executeMultiple(statements) {
-  // Split statements by semicolon where appropriate or execute in batch
-  const stmts = statements
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+export async function executeMultiple(sql) {
+  const statements = sql
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
 
-  for (const stmt of stmts) {
-    await client.execute(stmt);
+  for (const statement of statements) {
+    await pool.query(statement);
   }
 }
 
-/**
- * Run a transaction
- */
 export async function transaction(callback) {
-  const tx = await client.transaction('write');
+  const connection = await pool.getConnection();
+
+  // SQLite-compatible transaction helpers
+  const tx = {
+    query: async (sql, params = []) => {
+      const [rows] = await connection.execute(sql, params);
+      return rows;
+    },
+
+    get: async (sql, params = []) => {
+      const [rows] = await connection.execute(sql, params);
+      return rows[0] || null;
+    },
+
+    run: async (sql, params = []) => {
+      const [result] = await connection.execute(sql, params);
+
+      return {
+        changes: result.affectedRows || 0,
+        lastInsertRowid: result.insertId || 0,
+        insertId: result.insertId || 0,
+      };
+    },
+  };
+
   try {
-    const txHelper = {
-      query: async (sql, args = []) => {
-        const res = await tx.execute({ sql, args });
-        return res.rows || [];
-      },
-      get: async (sql, args = []) => {
-        const res = await tx.execute({ sql, args });
-        return (res.rows && res.rows.length > 0) ? res.rows[0] : null;
-      },
-      run: async (sql, args = []) => {
-        const res = await tx.execute({ sql, args });
-        return {
-          lastInsertRowid: res.lastInsertRowid !== undefined ? Number(res.lastInsertRowid) : null,
-          rowsAffected: res.rowsAffected || 0,
-        };
-      },
-    };
-    const result = await callback(txHelper);
-    await tx.commit();
+    await connection.beginTransaction();
+
+    const result = await callback(tx);
+
+    await connection.commit();
+
     return result;
   } catch (error) {
-    await tx.rollback();
+    await connection.rollback();
     throw error;
+  } finally {
+    connection.release();
   }
 }
 
+export async function closeDatabase() {
+  await pool.end();
+}
+
+
 export default {
-  client,
   query,
   get,
   run,
   executeMultiple,
   transaction,
+  closeDatabase,
 };

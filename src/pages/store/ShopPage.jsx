@@ -14,12 +14,20 @@ export default function ShopPage({ initialCategory, initialSearch, onNavigate })
   const [selectedBrand, setSelectedBrand] = useState('');
   const [sortBy, setSortBy] = useState('featured');
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const PRODUCTS_PER_PAGE = 50;
+
   useEffect(() => {
     loadFilters();
   }, []);
 
   useEffect(() => {
-    loadProducts();
+    setPage(1);
+    setHasMore(true);
+    loadProducts(1, true);
   }, [search, selectedCategory, selectedBrand, sortBy]);
 
   async function loadFilters() {
@@ -35,30 +43,69 @@ export default function ShopPage({ initialCategory, initialSearch, onNavigate })
     }
   }
 
-  async function loadProducts() {
-    setLoading(true);
+  async function loadProducts(pageNumber = 1, reset = false) {
+    if (pageNumber === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+  
     try {
       const params = new URLSearchParams();
-      if (search.trim()) params.append('search', search.trim());
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (selectedBrand) params.append('brand', selectedBrand);
-      params.append('limit', '50');
-
+  
+      if (search.trim()) {
+        params.append('search', search.trim());
+      }
+  
+      if (selectedCategory) {
+        params.append('category', selectedCategory);
+      }
+  
+      if (selectedBrand) {
+        params.append('brand', selectedBrand);
+      }
+  
+      // IMPORTANT: sorting backend handle karega
+      params.append('sort', sortBy);
+  
+      params.append('page', String(pageNumber));
+      params.append('limit', String(PRODUCTS_PER_PAGE));
+  
       const res = await client.get(`/products?${params.toString()}`);
+  
       if (res.success && res.data) {
-        let prods = res.data.products || [];
-        if (sortBy === 'price_asc') {
-          prods.sort((a, b) => a.selling_price - b.selling_price);
-        } else if (sortBy === 'price_desc') {
-          prods.sort((a, b) => b.selling_price - a.selling_price);
+        const newProducts = res.data.products || [];
+        const pagination = res.data.pagination;
+  
+        // First page / filter change
+        if (reset || pageNumber === 1) {
+          setProducts(newProducts);
+        } else {
+          // Load More → append
+          setProducts(prev => [...prev, ...newProducts]);
         }
-        setProducts(prods);
+  
+        setPage(pageNumber);
+  
+        // Backend tells us whether more pages exist
+        if (pagination) {
+          setHasMore(pageNumber < pagination.pages);
+        } else {
+          setHasMore(newProducts.length === PRODUCTS_PER_PAGE);
+        }
       }
     } catch (err) {
       console.warn('Failed to load products:', err.message);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  }
+
+  async function handleLoadMore() {
+    if (loadingMore || !hasMore) return;
+  
+    await loadProducts(page + 1, false);
   }
 
   return (
@@ -171,7 +218,21 @@ export default function ShopPage({ initialCategory, initialSearch, onNavigate })
               onSelect={(item) => onNavigate('product', { id: item.id })}
             />
           ))}
+
+          {hasMore && products.length > 0 && (
+            <div className="flex justify-center pt-6">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {loadingMore ? 'Loading...' : 'Load More Products'}
+              </button>
+            </div>
+          )}
         </div>
+
+        
       )}
 
     </div>

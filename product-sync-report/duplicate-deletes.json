@@ -1,0 +1,74 @@
+[
+  {
+    "id": 72,
+    "product_code": "SW-SW0041",
+    "name": "AAKASH MASTANA MIX 200GM",
+    "image": "SW-SW0041.webp",
+    "identity": "AAKASHMASTANAMIX200G|48.00",
+    "keep_id": 71,
+    "keep_product_code": "SW-SW0040"
+  },
+  {
+    "id": 3026,
+    "product_code": "SP003154",
+    "name": "KABULI CHANA 250G",
+    "image": "SP003154.webp",
+    "identity": "KABULICHANA250G|30.00",
+    "keep_id": 1245,
+    "keep_product_code": "SW-SW1214"
+  },
+  {
+    "id": 3030,
+    "product_code": "SP003158",
+    "name": "KAJU TUKDI 100G",
+    "image": "SP003158.webp",
+    "identity": "KAJUTUKDI100G|95.00",
+    "keep_id": 1251,
+    "keep_product_code": "SW-SW1220"
+  },
+  {
+    "id": 1303,
+    "product_code": "SW-SW1272",
+    "name": "KHAN CHANA 250 GM",
+    "image": "SW-SW1272.webp",
+    "identity": "KHANCHANA250G|25.00",
+    "keep_id": 1305,
+    "keep_product_code": "SW-SW1274"
+  },
+  {
+    "id": 3512,
+    "product_code": "SP003640",
+    "name": "MISHRI WHOLE 250G",
+    "image": "SP003640.webp",
+    "identity": "MISHRIWHOLE250G|25.00",
+    "keep_id": 1582,
+    "keep_product_code": "SW-SW1551"
+  },
+  {
+    "id": 3715,
+    "product_code": "SP003843",
+    "name": "PUSHP JEERA 500G",
+    "image": "SP003843.webp",
+    "identity": "PUSHPJEERA500G|160.00",
+    "keep_id": 1983,
+    "keep_product_code": "SW-SW1952"
+  },
+  {
+    "id": 2028,
+    "product_code": "SW-SW1997",
+    "name": "RED LABLE 500GM",
+    "image": "SW-SW1997.webp",
+    "identity": "REDLABLE500G|260.00",
+    "keep_id": 2027,
+    "keep_product_code": "SW-SW1996"
+  },
+  {
+    "id": 3757,
+    "product_code": "SP003885",
+    "name": "SACHAMOTI SABUDANA 500G",
+    "image": "SP003885.webp",
+    "identity": "SACHAMOTISABUDANA500G|48.00",
+    "keep_id": 2069,
+    "keep_product_code": "SW-SW2038"
+  }
+]

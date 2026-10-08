@@ -15,81 +15,165 @@ export async function getProducts(req, res) {
       brand = '',
       status = 'ACTIVE',
       featured = '',
+      sort = 'featured',
+      image = '',
+      stockSort = '',
       page = 1,
       limit = 20,
     } = req.query;
 
-    const offset = (Number(page) - 1) * Number(limit);
+    // ---------------------------------------
+    // Pagination
+    // ---------------------------------------
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const limitNumber = Math.max(1, Number(limit) || 20);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    // ---------------------------------------
+    // Conditions
+    // ---------------------------------------
     const conditions = [];
     const args = [];
 
+    // Status
     if (status && status !== 'ALL') {
       conditions.push('p.status = ?');
       args.push(status);
     }
 
+    // Featured
     if (featured === '1' || featured === 'true') {
       conditions.push('p.featured = 1');
     }
 
+    // Category
     if (category) {
       conditions.push('(c.slug = ? OR c.id = ?)');
       args.push(category, category);
     }
 
+    // Brand
     if (brand) {
       conditions.push('(b.slug = ? OR b.id = ?)');
       args.push(brand, brand);
     }
 
+    // Search
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
-      conditions.push('(p.name LIKE ? OR p.product_code LIKE ? OR p.description LIKE ? OR c.name LIKE ? OR b.name LIKE ?)');
+
+      conditions.push(`
+        (
+          p.name LIKE ?
+          OR p.product_code LIKE ?
+          OR p.description LIKE ?
+          OR c.name LIKE ?
+          OR b.name LIKE ?
+        )
+      `);
+
       args.push(q, q, q, q, q);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    // ---------------------------------------
+    // Image Filter
+    // ---------------------------------------
+    if (image === 'with') {
+      conditions.push('p.is_image = 1');
+    }
 
+    if (image === 'without') {
+      conditions.push('(p.is_image = 0 OR p.is_image IS NULL)');
+    }
+
+    // ---------------------------------------
+    // WHERE Clause
+    // ---------------------------------------
+    const whereClause =
+      conditions.length > 0
+        ? `WHERE ${conditions.join(' AND ')}`
+        : '';
+
+    // ---------------------------------------
+    // Sorting
+    // ---------------------------------------
+    let orderClause = 'p.sort_order ASC, p.id DESC';
+
+    // Stock sorting has priority
+    if (stockSort === 'asc') {
+      orderClause = 'p.stock ASC, p.id DESC';
+    } else if (stockSort === 'desc') {
+      orderClause = 'p.stock DESC, p.id DESC';
+    }
+
+    // Price sorting
+    else if (sort === 'price_asc') {
+      orderClause = 'p.selling_price ASC, p.id DESC';
+    } else if (sort === 'price_desc') {
+      orderClause = 'p.selling_price DESC, p.id DESC';
+    }
+
+    // ---------------------------------------
+    // Total Count
+    // ---------------------------------------
     const countRow = await db.get(
-      `SELECT COUNT(p.id) as total
-       FROM products p
-       LEFT JOIN categories c ON p.category_id = c.id
-       LEFT JOIN brands b ON p.brand_id = b.id
-       ${whereClause}`,
+      `
+      SELECT COUNT(p.id) AS total
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      ${whereClause}
+      `,
       args
     );
 
     const total = Number(countRow?.total || 0);
 
+    // ---------------------------------------
+    // Products
+    // ---------------------------------------
     const products = await db.query(
-      `SELECT p.*, c.name as category_name, c.slug as category_slug,
-              b.name as brand_name, b.slug as brand_slug
-       FROM products p
-       LEFT JOIN categories c ON p.category_id = c.id
-       LEFT JOIN brands b ON p.brand_id = b.id
-       ${whereClause}
-       ORDER BY p.sort_order ASC, p.id DESC
-       LIMIT ? OFFSET ?`,
-      [...args, Number(limit), offset]
+      `
+      SELECT
+        p.*,
+        c.name AS category_name,
+        c.slug AS category_slug,
+        b.name AS brand_name,
+        b.slug AS brand_slug
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      ${whereClause}
+      ORDER BY ${orderClause}
+      LIMIT ? OFFSET ?
+      `,
+      [...args, limitNumber, offset]
     );
 
+    // ---------------------------------------
+    // Response
+    // ---------------------------------------
     return res.json({
       success: true,
       data: {
         products,
         pagination: {
           total,
-          page: Number(page),
-          limit: Number(limit),
-          pages: Math.ceil(total / Number(limit)),
+          page: pageNumber,
+          limit: limitNumber,
+          pages: Math.ceil(total / limitNumber),
         },
       },
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    console.error('getProducts error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 }
-
 export async function getProductById(req, res) {
   try {
     const { id } = req.params;
@@ -113,6 +197,7 @@ export async function getProductById(req, res) {
   }
 }
 
+
 export async function createProduct(req, res) {
   try {
     const {
@@ -126,32 +211,132 @@ export async function createProduct(req, res) {
       stock = 0,
       minimum_stock = 5,
       description = '',
-      image = '',
-      image2 = '',
       status = 'ACTIVE',
       featured = 0,
     } = req.body;
 
-    if (!name || !category_id || original_price === undefined || selling_price === undefined) {
-      return res.status(400).json({ success: false, message: 'Name, Category, and Prices are required' });
+    // ---------------------------------------
+    // Validate required fields
+    // ---------------------------------------
+    if (
+      !name ||
+      !category_id ||
+      original_price === undefined ||
+      selling_price === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, Category, and Prices are required',
+      });
     }
 
-    // Generate unique product_code if not supplied (e.g. SP000123)
-    let productCode = req.body.product_code;
+    // ---------------------------------------
+    // Generate / Validate Unique Product Code
+    // ---------------------------------------
+    let productCode = req.body.product_code?.trim();
+
+    // Check supplied product code
+    if (productCode) {
+      const existing = await db.get(
+        `
+        SELECT id
+        FROM products
+        WHERE product_code = ?
+        LIMIT 1
+        `,
+        [productCode]
+      );
+
+      // Supplied code already exists
+      // Generate a new unique SP code instead
+      if (existing) {
+        productCode = null;
+      }
+    }
+
+    // Generate code if not supplied OR supplied code already exists
     if (!productCode) {
-      const countRow = await db.get('SELECT COUNT(id) as count FROM products');
-      const seq = (Number(countRow?.count || 0) + 1).toString().padStart(6, '0');
-      productCode = `SP${seq}`;
+      const maxRow = await db.get(
+        `
+        SELECT MAX(
+          CASE
+            WHEN product_code REGEXP '^SP[0-9]{6}$'
+            THEN CAST(SUBSTRING(product_code, 3) AS UNSIGNED)
+            ELSE 0
+          END
+        ) AS max_sequence
+        FROM products
+        `
+      );
+
+      let sequence = Number(maxRow?.max_sequence || 0) + 1;
+
+      while (true) {
+        const candidate = `SP${String(sequence).padStart(6, '0')}`;
+
+        const existing = await db.get(
+          `
+          SELECT id
+          FROM products
+          WHERE product_code = ?
+          LIMIT 1
+          `,
+          [candidate]
+        );
+
+        if (!existing) {
+          productCode = candidate;
+          break;
+        }
+
+        sequence++;
+      }
     }
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + `-${Date.now().toString().slice(-4)}`;
+    // ---------------------------------------
+    // Get uploaded files
+    // ---------------------------------------
+    const primaryFile = req.files?.image?.[0] || null;
+    //const secondaryFile = req.files?.image2?.[0] || null;
 
+    // ---------------------------------------
+    // Generate slug
+    // ---------------------------------------
+    const slug =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') +
+      `-${Date.now().toString().slice(-4)}`;
+
+    // Image flag
+    const isImage = primaryFile ? 1 : 0;
+
+    // ---------------------------------------
+    // Create Product
+    // ---------------------------------------
     const result = await db.transaction(async (tx) => {
       const resInsert = await tx.run(
         `INSERT INTO products (
-          product_code, slug, name, category_id, brand_id, original_price, selling_price,
-          tax_percent, unit, stock, minimum_stock, description, image, image2, status, featured
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          product_code,
+          slug,
+          name,
+          category_id,
+          brand_id,
+          original_price,
+          selling_price,
+          tax_percent,
+          unit,
+          stock,
+          minimum_stock,
+          description,
+          image,
+          image2,
+          is_image,
+          status,
+          featured
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           productCode.trim(),
           slug,
@@ -165,8 +350,9 @@ export async function createProduct(req, res) {
           Number(stock),
           Number(minimum_stock),
           description,
-          image,
-          image2,
+          '',
+          '',
+          isImage,
           status,
           featured ? 1 : 0,
         ]
@@ -174,34 +360,122 @@ export async function createProduct(req, res) {
 
       const newId = resInsert.lastInsertRowid;
 
+      // ---------------------------------------
       // Record initial inventory transaction
+      // ---------------------------------------
       if (Number(stock) > 0) {
         await tx.run(
           `INSERT INTO inventory_transactions (
-            product_id, type, quantity, previous_stock, new_stock, reference_type, reference_id, user_id, note
-          ) VALUES (?, 'IN', ?, 0, ?, 'INITIAL_STOCK', ?, ?, 'Product created with initial stock')`,
-          [newId, Number(stock), Number(stock), String(newId), req.user.id]
+            product_id,
+            type,
+            quantity,
+            previous_stock,
+            new_stock,
+            reference_type,
+            reference_id,
+            user_id,
+            note
+          )
+          VALUES (?, 'IN', ?, 0, ?, 'INITIAL_STOCK', ?, ?, ?)`,
+          [
+            newId,
+            Number(stock),
+            Number(stock),
+            String(newId),
+            req.user.id,
+            'Product created with initial stock',
+          ]
         );
       }
 
       return newId;
     });
 
-    const created = await db.get('SELECT * FROM products WHERE id = ?', [result]);
-    return res.status(201).json({ success: true, message: 'Product created successfully', data: created });
+    // ---------------------------------------
+    // Upload Primary Image
+    // ---------------------------------------
+    // ---------------------------------------
+// Upload Primary Image
+// ---------------------------------------
+    let imageFilename = '';
+    let image2Filename = '';
+
+    if (primaryFile) {
+      imageFilename = await storageService.saveFile(
+        primaryFile,
+        productCode
+      );
+    }
+
+    // image2 disabled for now
+    image2Filename = '';
+
+    // ---------------------------------------
+    // Update image filenames
+    // ---------------------------------------
+    if (primaryFile) {
+      await db.run(
+        `
+        UPDATE products
+        SET
+          image = ?,
+          image2 = '',
+          is_image = 1
+        WHERE id = ?
+        `,
+        [
+          imageFilename,
+          result,
+        ]
+      );
+    }
+
+    // ---------------------------------------
+    // Get final product
+    // ---------------------------------------
+    const created = await db.get(
+      'SELECT * FROM products WHERE id = ?',
+      [result]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data: created,
+    });
+
   } catch (err) {
-    return res.status(400).json({ success: false, message: err.message });
+    console.error('createProduct error:', err);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 }
 
 export async function updateProduct(req, res) {
   try {
     const { id } = req.params;
-    const existing = await db.get('SELECT * FROM products WHERE id = ?', [id]);
+
+    // ---------------------------------------
+    // Get existing product
+    // ---------------------------------------
+    const existing = await db.get(
+      'SELECT * FROM products WHERE id = ?',
+      [id]
+    );
+
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
     }
 
+    // ---------------------------------------
+    // Get form fields
+    // ---------------------------------------
     const {
       name,
       category_id,
@@ -212,41 +486,149 @@ export async function updateProduct(req, res) {
       unit,
       minimum_stock,
       description,
-      image,
-      image2,
       status,
       featured,
     } = req.body;
 
+    // ---------------------------------------
+    // Get uploaded files
+    // ---------------------------------------
+    const primaryFile = req.files?.image?.[0] || null;
+    const secondaryFile = req.files?.image2?.[0] || null;
+
+    // ---------------------------------------
+    // Start with existing images
+    // ---------------------------------------
+    let finalImage = existing.image || '';
+    let finalImage2 = existing.image2 || '';
+
+    // ---------------------------------------
+    // Upload new Primary Image
+    // ---------------------------------------
+    if (primaryFile) {
+      finalImage = await storageService.saveFile(
+        primaryFile,
+        existing.product_code
+      );
+    }
+
+    // ---------------------------------------
+    // Upload new Secondary Image
+    // ---------------------------------------
+    if (secondaryFile) {
+      finalImage2 = await storageService.saveFile(
+        secondaryFile,
+        `${existing.product_code}_2`
+      );
+    }
+    // ---------------------------------------
+    // is_image depends on Primary Image
+    // ---------------------------------------
+    const isImage =
+      finalImage && finalImage.trim() !== ''
+        ? 1
+        : 0;
+
+    // ---------------------------------------
+    // Update Product
+    // ---------------------------------------
     await db.run(
       `UPDATE products SET
-        name = ?, category_id = ?, brand_id = ?, original_price = ?,
-        selling_price = ?, tax_percent = ?, unit = ?, minimum_stock = ?,
-        description = ?, image = ?, image2 = ?, status = ?, featured = ?,
+        name = ?,
+        category_id = ?,
+        brand_id = ?,
+        original_price = ?,
+        selling_price = ?,
+        tax_percent = ?,
+        unit = ?,
+        minimum_stock = ?,
+        description = ?,
+        image = ?,
+        image2 = ?,
+        is_image = ?,
+        status = ?,
+        featured = ?,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [
-        name || existing.name,
-        category_id || existing.category_id,
-        brand_id !== undefined ? brand_id : existing.brand_id,
-        original_price !== undefined ? Number(original_price) : existing.original_price,
-        selling_price !== undefined ? Number(selling_price) : existing.selling_price,
-        tax_percent !== undefined ? Number(tax_percent) : existing.tax_percent,
-        unit || existing.unit,
-        minimum_stock !== undefined ? Number(minimum_stock) : existing.minimum_stock,
-        description !== undefined ? description : existing.description,
-        image || existing.image,
-        image2 || existing.image2,
-        status || existing.status,
-        featured !== undefined ? (featured ? 1 : 0) : existing.featured,
+        name !== undefined
+          ? name.trim()
+          : existing.name,
+
+        category_id !== undefined
+          ? category_id
+          : existing.category_id,
+
+        brand_id !== undefined
+          ? (brand_id || null)
+          : existing.brand_id,
+
+        original_price !== undefined
+          ? Number(original_price)
+          : existing.original_price,
+
+        selling_price !== undefined
+          ? Number(selling_price)
+          : existing.selling_price,
+
+        tax_percent !== undefined
+          ? Number(tax_percent)
+          : existing.tax_percent,
+
+        unit !== undefined
+          ? unit
+          : existing.unit,
+
+        minimum_stock !== undefined
+          ? Number(minimum_stock)
+          : existing.minimum_stock,
+
+        description !== undefined
+          ? description
+          : existing.description,
+
+        // Primary image
+        finalImage,
+
+        // Secondary image
+        finalImage2,
+
+        // Image flag
+        isImage,
+
+        status !== undefined
+          ? status
+          : existing.status,
+
+        featured !== undefined
+          ? (featured ? 1 : 0)
+          : existing.featured,
+
         id,
       ]
     );
 
-    const updated = await db.get('SELECT * FROM products WHERE id = ?', [id]);
-    return res.json({ success: true, message: 'Product updated successfully', data: updated });
+    // ---------------------------------------
+    // Get updated product
+    // ---------------------------------------
+    const updated = await db.get(
+      'SELECT * FROM products WHERE id = ?',
+      [id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Product updated successfully',
+      data: updated,
+    });
+
   } catch (err) {
-    return res.status(400).json({ success: false, message: err.message });
+    console.error('updateProduct error:', err);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 }
 

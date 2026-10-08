@@ -24,6 +24,7 @@ import ImageUploader from '../../components/common/ImageUploader.jsx';
 import ImagePreview from '../../components/common/ImagePreview.jsx';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getProductImageUrl } from '../../utils/image.js';
 
 export default function AdminProducts() {
   const { roles, permissions } = useAuth();
@@ -35,6 +36,14 @@ export default function AdminProducts() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [imageFilter, setImageFilter] = useState('');
+  const [stockSort, setStockSort] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [productHasMore, setProductHasMore] = useState(true);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
+  const [totalProducts, setTotalProducts] = useState(0);
+
+  const PRODUCTS_PER_PAGE = 100;
 
   // Product Modal State
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -55,6 +64,8 @@ export default function AdminProducts() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [image2, setImage2] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [image2File, setImage2File] = useState(null);
   const [featured, setFeatured] = useState(false);
 
   // Category Modal State
@@ -86,26 +97,108 @@ export default function AdminProducts() {
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    loadAllData();
-  }, [search]);
+    setProductPage(1);
+    setProductHasMore(true);
+    loadAllData(1, false);
+  }, [search,imageFilter,stockSort]);
 
-  async function loadAllData() {
-    setLoading(true);
+
+  async function loadAllData(pageNumber = 1, append = false) {
+    if (pageNumber === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMoreProducts(true);
+    }
+  
     try {
-      const [prodsRes, catsRes, brandsRes] = await Promise.all([
-        client.get(`/products?status=ALL&limit=200${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-        client.get('/categories?includeInactive=true'),
-        client.get('/brands?includeInactive=true'),
-      ]);
+      const productParams = new URLSearchParams();
+  
+      productParams.append('status', 'ALL');
+      productParams.append('page', String(pageNumber));
+      productParams.append('limit', String(PRODUCTS_PER_PAGE));
+  
+      if (search) {
+        productParams.append('search', search);
+      }
 
-      if (prodsRes.success) setProducts(prodsRes.data?.products || []);
-      if (catsRes.success) setCategories(catsRes.data || []);
-      if (brandsRes.success) setBrands(brandsRes.data || []);
+      if (imageFilter) {
+        productParams.append('image', imageFilter);
+      }
+
+      if (stockSort) {
+        productParams.append('stockSort', stockSort);
+      }
+  
+      const productRequest = client.get(
+        `/products?${productParams.toString()}`
+      );
+  
+      // Categories & brands only need to be loaded on first page
+      const requests = [productRequest];
+  
+      if (pageNumber === 1) {
+        requests.push(
+          client.get('/categories?includeInactive=true'),
+          client.get('/brands?includeInactive=true')
+        );
+      }
+  
+      const results = await Promise.all(requests);
+  
+      const prodsRes = results[0];
+  
+      if (prodsRes.success) {
+        const newProducts = prodsRes.data?.products || [];
+        const pagination = prodsRes.data?.pagination;
+  
+        if (append) {
+          setProducts(prev => [...prev, ...newProducts]);
+        } else {
+          setProducts(newProducts);
+        }
+  
+        setProductPage(pageNumber);
+  
+        if (pagination) {
+          setTotalProducts(pagination.total || 0);
+          setProductHasMore(pageNumber < pagination.pages);
+        } else {
+          setTotalProducts(newProducts.length);
+          setProductHasMore(
+            newProducts.length === PRODUCTS_PER_PAGE
+          );
+        }
+      }
+  
+      if (pageNumber === 1) {
+        const catsRes = results[1];
+        const brandsRes = results[2];
+  
+        if (catsRes?.success) {
+          setCategories(catsRes.data || []);
+        }
+  
+        if (brandsRes?.success) {
+          setBrands(brandsRes.data || []);
+        }
+      }
     } catch (err) {
-      console.warn('Failed to load catalog data:', err.message);
+      console.warn(
+        'Failed to load catalog data:',
+        err.message
+      );
     } finally {
       setLoading(false);
+      setLoadingMoreProducts(false);
     }
+  }
+
+  async function handleLoadMoreProducts() {
+    if (loadingMoreProducts || !productHasMore) {
+      return;
+    }
+  
+    await loadAllData(productPage + 1, true);
   }
 
   // --- PRODUCT CRUD ---
@@ -125,6 +218,8 @@ export default function AdminProducts() {
     setDescription('');
     setImage('');
     setImage2('');
+    setImageFile(null);
+    setImage2File(null);
     setFeatured(false);
     setIsProductModalOpen(true);
   }
@@ -144,6 +239,8 @@ export default function AdminProducts() {
     setDescription(prod.description || '');
     setImage(prod.image || '');
     setImage2(prod.image2 || '');
+    setImageFile(null);
+    setImage2File(null);
     setFeatured(Boolean(prod.featured));
     setIsProductModalOpen(true);
   }
@@ -151,39 +248,67 @@ export default function AdminProducts() {
   async function handleSaveProduct(e) {
     e.preventDefault();
     setSavingProduct(true);
+  
     try {
-      const payload = {
-        name,
-        product_code: productCode,
-        category_id: categoryId,
-        brand_id: brandId || null,
-        original_price: originalPrice,
-        selling_price: sellingPrice,
-        tax_percent: taxPercent,
-        unit,
-        stock,
-        minimum_stock: minStock,
-        description,
-        image,
-        image2,
-        featured,
-      };
-
-      if (editingProduct) {
-        await client.put(`/products/${editingProduct.id}`, payload);
-      } else {
-        await client.post('/products', payload);
+      const formData = new FormData();
+  
+      formData.append('name', name);
+      formData.append('product_code', productCode);
+      formData.append('category_id', categoryId);
+      formData.append('brand_id', brandId || '');
+      formData.append('original_price', originalPrice);
+      formData.append('selling_price', sellingPrice);
+      formData.append('tax_percent', taxPercent);
+      formData.append('unit', unit);
+      formData.append('stock', stock);
+      formData.append('minimum_stock', minStock);
+      formData.append('description', description);
+      formData.append('featured', featured ? '1' : '0');
+  
+      // Send actual selected files
+      if (imageFile) {
+        formData.append('image', imageFile);
       }
-
+  
+      if (image2File) {
+        formData.append('image2', image2File);
+      }
+  
+      let response;
+  
+      if (editingProduct) {
+        response = await client.put(
+          `/products/${editingProduct.id}`,
+          formData
+        );
+      } else {
+        response = await client.post(
+          '/products',
+          formData
+        );
+      }
+  
+      if (!response?.success) {
+        throw new Error(
+          response?.message || 'Product save failed'
+        );
+      }
+  
       setIsProductModalOpen(false);
+  
+      setImageFile(null);
+      setImage2File(null);
+  
       loadAllData();
+  
     } catch (err) {
+      console.error('Save product error:', err);
+  
       alert(`Save failed: ${err.message}`);
     } finally {
       setSavingProduct(false);
     }
   }
-
   // --- CATEGORY CRUD ---
   function openCreateCategoryModal() {
     setEditingCat(null);
@@ -413,7 +538,9 @@ export default function AdminProducts() {
             }`}
           >
             <Package className="w-4 h-4" />
-            <span>Products ({products.length})</span>
+            <span>
+              Products ({totalProducts})
+            </span>
           </button>
 
           <button
@@ -457,18 +584,43 @@ export default function AdminProducts() {
       {activeTab === 'products' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products by code, name, category, or brand..."
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-hidden focus:border-emerald-500 font-medium"
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[280px] max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
 
-            <button
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products by code, name, category, or brand..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 font-medium"
+            />
+          </div>
+
+          {/* Image Filter */}
+          <select
+            value={imageFilter}
+            onChange={(e) => setImageFilter(e.target.value)}
+            className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+          >
+            <option value="">All Images</option>
+            <option value="with">With Image</option>
+            <option value="without">Without Image</option>
+          </select>
+
+          {/* Stock Sort */}
+          <select
+            value={stockSort}
+            onChange={(e) => setStockSort(e.target.value)}
+            className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+          >
+            <option value="">Stock: Default</option>
+            <option value="asc">Stock: Low to High</option>
+            <option value="desc">Stock: High to Low</option>
+          </select>
+        </div>
+                    <button
               type="button"
               onClick={openCreateProductModal}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -483,10 +635,12 @@ export default function AdminProducts() {
               <table className="w-full text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[11px]">
                   <tr>
+                  <th className="p-3.5">#</th>
                     <th className="p-3.5">Image</th>
                     <th className="p-3.5">Product Code</th>
                     <th className="p-3.5">Name</th>
                     <th className="p-3.5">Category</th>
+                    <th className="p-3.5">Brand</th>
                     <th className="p-3.5">Price</th>
                     <th className="p-3.5">Stock</th>
                     <th className="p-3.5">Status</th>
@@ -503,11 +657,20 @@ export default function AdminProducts() {
                       <td colSpan={8} className="p-8 text-center text-slate-400">No products found.</td>
                     </tr>
                   ) : (
-                    products.map((p) => (
+                    products.map((p,index) => (
                       <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+
+                        <td className="p-3 font-mono font-bold text-slate-900">
+                          {index+1}
+                        </td>
                         <td className="p-3">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                            <ImagePreview src={p.image} alt={p.name} fallbackText="None" />
+                          <div className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+                            <ImagePreview
+                              src={getProductImageUrl(p)}
+                              alt={p.name}
+                              fallbackText="None"
+                              className="w-full h-full object-contain cursor-pointer"
+                            />
                           </div>
                         </td>
 
@@ -523,6 +686,11 @@ export default function AdminProducts() {
                         <td className="p-3 font-medium text-slate-700">
                           {p.category_name || 'N/A'}
                         </td>
+
+                        <td className="p-3 font-medium text-slate-700">
+                          {p.brand_name || 'N/A'}
+                        </td>
+                        
 
                         <td className="p-3 font-bold text-slate-900">
                           <span className="text-emerald-800 font-black">₹{p.selling_price}</span>
@@ -574,6 +742,31 @@ export default function AdminProducts() {
                 </tbody>
               </table>
             </div>
+
+            {productHasMore && products.length > 0 && (
+                <div className="flex flex-col items-center gap-2 py-5">
+                  <p className="text-xs text-slate-500">
+                    Showing {products.length} of {totalProducts} products
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreProducts}
+                    disabled={loadingMoreProducts}
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loadingMoreProducts
+                      ? 'Loading Products...'
+                      : 'Load More Products'}
+                  </button>
+                </div>
+              )}
+
+              {!productHasMore && products.length > 0 && (
+                <div className="text-center py-5 text-xs text-slate-400">
+                  Showing all {totalProducts} products
+                </div>
+              )}
           </div>
         </div>
       )}
@@ -860,17 +1053,18 @@ export default function AdminProducts() {
 
             <form onSubmit={handleSaveProduct} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Product Code *</label>
-                  <input
-                    type="text"
-                    value={productCode}
-                    onChange={(e) => setProductCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. SP000123"
-                    required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900"
-                  />
-                </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Product Code *
+                </label>
+
+                <input
+                  type="text"
+                  
+                  disabled
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900"
+                />
+              </div>
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Product Name *</label>
@@ -961,19 +1155,21 @@ export default function AdminProducts() {
               {/* Central Image Uploader for Primary & Secondary Product Image */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
                 <ImageUploader
-                  label="Primary Image (SP000123.webp)"
+                  label="Primary Image"
                   value={image}
                   onChange={setImage}
+                  onFileSelect={setImageFile}
                   productCode={productCode}
                   suffix=""
                 />
-                <ImageUploader
-                  label="Secondary Image (SP000123_2.webp)"
+                {/* <ImageUploader
+                  label="Secondary Image"
                   value={image2}
                   onChange={setImage2}
+                  onFileSelect={setImage2File}
                   productCode={productCode}
                   suffix="_2"
-                />
+                /> */}
               </div>
 
               <div>
