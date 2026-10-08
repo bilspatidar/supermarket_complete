@@ -1,6 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import app from './server/app.js';
+//import { runMigrations } from './database/migrate.js';
 import { initScheduledTasks } from './server/jobs/scheduledTasks.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +13,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 async function startServer() {
   try {
     // 1. Ensure MySQL Database & Tables
+    //await runMigrations();
 
     // 2. Setup Frontend Serving
     // Development: Vite middleware
