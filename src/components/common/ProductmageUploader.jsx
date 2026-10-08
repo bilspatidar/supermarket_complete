@@ -8,7 +8,7 @@ import ImageViewer from './ImageViewer.jsx';
  * Used for Products, Categories, Brands, Sliders, CMS Pages, Store Logo, Offers
  * Supports custom naming like SP000123.webp and SP000123_2.webp
  */
-export default function ImageUploader({
+export default function ProductmageUploader({
   label = 'Upload Image',
   value = '',
   onChange,
