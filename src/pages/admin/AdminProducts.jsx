@@ -20,7 +20,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import client from '../../api/client.js';
-import ImageUploader from '../../components/common/ImageUploader.jsx';
+import ProductmageUploader from '../../components/common/ProductmageUploader.jsx';
 import ImagePreview from '../../components/common/ImagePreview.jsx';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -1154,7 +1154,7 @@ export default function AdminProducts() {
 
               {/* Central Image Uploader for Primary & Secondary Product Image */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <ImageUploader
+                <ProductmageUploader
                   label="Primary Image"
                   value={image}
                   onChange={setImage}
@@ -1255,7 +1255,7 @@ export default function AdminProducts() {
               </div>
 
               {/* Reusable Image Uploader for Category */}
-              <ImageUploader
+              <ProductmageUploader
                 label="Category Banner Image"
                 value={catImage}
                 onChange={setCatImage}
@@ -1324,7 +1324,7 @@ export default function AdminProducts() {
               </div>
 
               {/* Reusable Image Uploader for Brand Logo */}
-              <ImageUploader
+              <ProductmageUploader
                 label="Brand Logo"
                 value={brandLogo}
                 onChange={setBrandLogo}
