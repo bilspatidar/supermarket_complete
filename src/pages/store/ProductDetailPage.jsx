@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ShoppingCart, Plus, Minus, ShieldCheck, Truck, Clock, AlertCircle } from 'lucide-react';
 import client from '../../api/client.js';
 import { useCart } from '../../context/CartContext.jsx';
+import { getProductImageUrl } from '../../utils/image.js';
+
 
 export default function ProductDetailPage({ productId, onNavigate }) {
   const { items, addToCart, updateQuantity } = useCart();
@@ -71,7 +73,7 @@ export default function ProductDetailPage({ productId, onNavigate }) {
         <div className="space-y-4">
           <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center relative">
             <img
-              src={activeImage || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80'}
+             src={getProductImageUrl(product)}
               alt={product.name}
               className="w-full h-full object-cover"
             />

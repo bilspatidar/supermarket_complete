@@ -1,0 +1,88 @@
+Local
+git add .
+git commit -m "New feature"
+git push origin master
+VPS
+cd /var/www/swastik
+
+git fetch origin
+git reset --hard origin/master
+
+npm install      # only if package.json changes
+npm run build
+
+pm2 restart swastik 
+
+
+
+
+
+
+gogogle a/
+
+
+
+#!/bin/bash
+set -e
+
+echo "🚀 [1/6] Navigating to project directory..."
+cd /var/www/swastik
+
+echo "📥 [2/6] Fetching latest changes from GitHub (main branch)..."
+git fetch origin main
+
+echo "🔀 [3/6] Merging origin/main into server-deploy..."
+git checkout server-deploy
+git merge origin/main --no-edit
+
+echo "📦 [4/6] Checking and installing dependencies..."
+npm install
+
+
+echo "🔄 [5/7] Running database schema migration..."
+npm run db:migrate
+
+echo "🛠️ [6/7] Building production application..."
+
+npm run build
+
+echo "🔄 [6/6] Restarting live PM2 server..."
+pm2 restart swastik
+
+echo "✅ Deployment successful! Swastik is live on server-deploy."
+
+pm2 status swastik
+
+
+
+
+///// FOR DATABASE DOWNLOAD
+
+scp -P 22 root@72.61.169.1:/root/swastik_local_backup.db ~/Downloads/swastik_local_backup.db  to copy database on the local
+
+
+
+FOR IMAGE updated
+node scripts/sync-r2-product-images.js
+
+
+
+
+for bulk in mac 
+
+find . -type f | while IFS= read -r file; do
+  key="${file#./}"
+  echo "Uploading: $key"
+
+  for attempt in 1 2 3; do
+    wrangler r2 object put "swastikmarket/$key" --file "$file" --remote && break
+    echo "Retry $attempt failed. Waiting 5 seconds..."
+    sleep 5
+  done
+
+  if [ "$attempt" = "3" ]; then
+    echo "FAILED: $key"
+    exit 1
+  fi
+done
+

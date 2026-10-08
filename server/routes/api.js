@@ -57,6 +57,10 @@ router.post(
   authenticate,
   requireInternal,
   requirePermission('products.create'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'image2', maxCount: 1 },
+  ]),
   productController.createProduct
 );
 router.put(
@@ -64,6 +68,10 @@ router.put(
   authenticate,
   requireInternal,
   requirePermission('products.update'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'image2', maxCount: 1 },
+  ]),
   productController.updateProduct
 );
 router.delete(

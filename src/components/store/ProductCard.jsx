@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Minus, ShoppingCart, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext.jsx';
+import { getProductImageUrl } from '../../utils/image.js';
 
 export default function ProductCard({ product, onSelect }) {
   const { items, addToCart, updateQuantity } = useCart();
@@ -29,12 +30,12 @@ export default function ProductCard({ product, onSelect }) {
         onClick={() => onSelect && onSelect(product)}
         className="w-full aspect-4/3 bg-slate-50 overflow-hidden relative cursor-pointer"
       >
-        <img
-          src={product.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&q=80'}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
+      <img
+        src={getProductImageUrl(product)}
+        alt={product.name}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        loading="lazy"
+      />
         {isOutOfStock && (
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-2xs flex items-center justify-center">
             <span className="bg-rose-600 text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
