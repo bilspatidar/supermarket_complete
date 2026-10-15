@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Lock, Gift, Award, MapPin, Package, Clock, ShieldCheck, ChevronRight, Phone, Mail, Calendar, CheckCircle } from 'lucide-react';
+import {X,Banknote, Printer, Eye, User, Lock, Gift, Award, MapPin, Package, Clock, ShieldCheck, ChevronRight, Phone, Mail, Calendar, CheckCircle } from 'lucide-react';
 import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -12,6 +12,12 @@ export default function AccountDashboard({ onNavigate }) {
   const [membershipData, setMembershipData] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [assignDeliveryStaffId, setAssignDeliveryStaffId] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  
+  
+  
 
   // Profile edit fields
   const [name, setName] = useState(user?.name || '');
@@ -97,6 +103,23 @@ export default function AccountDashboard({ onNavigate }) {
       return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     } catch {
       return dStr;
+    }
+  }
+
+    async function viewOrderDetails(orderId) {
+    setModalLoading(true);
+    try {
+      const res = await client.get(`/orders/${orderId}`);
+      if (res.success && res.data) {
+        setSelectedOrder(res.data);
+        setAssignDeliveryStaffId(
+          res.data.order.delivery_staff_id ? String(res.data.order.delivery_staff_id) : ''
+        );
+      }
+    } catch (err) {
+      alert(`Failed to load order details: ${err.message}`);
+    } finally {
+      setModalLoading(false);
     }
   }
 
@@ -260,7 +283,16 @@ export default function AccountDashboard({ onNavigate }) {
                           <span className="text-[10px] bg-slate-900 text-white font-bold px-2 py-0.5 rounded flex items-center gap-1">
                             <Lock className="w-2.5 h-2.5" /> Locked
                           </span>
-                        )}
+                        )} 
+                        
+                        <button
+                          type="button"
+                          onClick={() => viewOrderDetails(ord.id)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Details</span>
+                      </button>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         Placed on {new Date(ord.created_at).toLocaleString()}
@@ -547,6 +579,236 @@ export default function AccountDashboard({ onNavigate }) {
           </div>
         </div>
       )}
+
+          {/* Order Details & Lifecycle Modal */}
+   
+{selectedOrder && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60">
+    <div className="bg-white rounded-xl w-full max-w-md max-h-[95vh] overflow-y-auto shadow-2xl">
+
+      {/* Close button - not part of receipt */}
+      <div className="flex justify-end p-3 border-b print:hidden">
+        <button
+          type="button"
+          onClick={() => setSelectedOrder(null)}
+          className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+          aria-label="Close bill"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Thermal Receipt */}
+      <div
+        id="customer-order-bill"
+        className="thermal-receipt mx-auto w-full max-w-[302px] bg-white p-3 text-black font-mono text-[11px] leading-relaxed"
+      >
+        {/* Receipt Header */}
+        <div className="text-center pb-3 border-b border-dashed border-black">
+          <h1 className="text-xl font-black tracking-wider">
+            CUSTOMER BILL
+          </h1>
+          <p className="text-[10px] mt-1">
+            Order Receipt
+          </p>
+        </div>
+
+        {/* Order Details */}
+        <div className="py-3 space-y-1 border-b border-dashed border-black">
+          <div className="flex justify-between gap-2">
+            <span>Bill No:</span>
+            <strong className="text-right break-all">
+              {selectedOrder.order.order_number}
+            </strong>
+          </div>
+
+          <div className="flex justify-between gap-2">
+            <span>Order Date:</span>
+            <span className="text-right">
+              {selectedOrder.order.created_at
+                ? new Date(
+                    selectedOrder.order.created_at
+                  ).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    timeZone: "Asia/Kolkata",
+                  })
+                : "-"}
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-2">
+            <span>Delivered:</span>
+            <span className="text-right">
+              {selectedOrder.order.delivered_at
+                ? new Date(
+                    selectedOrder.order.delivered_at
+                  ).toLocaleString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                    timeZone: "Asia/Kolkata",
+                  })
+                : "Not delivered"}
+            </span>
+          </div>
+
+          <div className="flex justify-between gap-2">
+            <span>Status:</span>
+            <strong>
+              {selectedOrder.order.order_status || "-"}
+            </strong>
+          </div>
+        </div>
+
+        {/* Customer */}
+        <div className="py-3 border-b border-dashed border-black space-y-1">
+          <p className="font-bold text-xs">CUSTOMER DETAILS</p>
+
+          <p>
+            Name: {selectedOrder.order.customer_name || "-"}
+          </p>
+
+          <p>
+            Mobile: {selectedOrder.order.customer_mobile || "-"}
+          </p>
+
+          <p className="break-words">
+            Address: {selectedOrder.order.delivery_address || "-"}
+          </p>
+
+          {selectedOrder.order.landmark && (
+            <p>Landmark: {selectedOrder.order.landmark}</p>
+          )}
+
+          <p>
+            {[ 
+              selectedOrder.order.sub_area_name,
+              selectedOrder.order.area_name,
+              selectedOrder.order.pincode,
+            ].filter(Boolean).join(", ")}
+          </p>
+        </div>
+
+        {/* Products */}
+        <div className="py-3 border-b border-dashed border-black">
+          <p className="font-bold text-xs mb-3">
+            ITEMS ({selectedOrder.items?.length || 0})
+          </p>
+
+          {selectedOrder.items?.map((item, index) => (
+            <div
+              key={item.id}
+              className="mb-3 pb-2 border-b border-dotted border-gray-400 last:border-0"
+            >
+              <div className="font-bold break-words">
+                {index + 1}. {item.product_name}
+              </div>
+
+              <div className="flex justify-between gap-2 mt-1">
+                <span>
+                  {Number(item.applied_price || 0).toFixed(2)}
+                  {" × "}
+                  {item.quantity} {item.unit}
+                </span>
+
+                <strong className="whitespace-nowrap">
+                  ₹{Number(item.total || 0).toFixed(2)}
+                </strong>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Total */}
+        <div className="py-4 border-b border-dashed border-black">
+          <div className="flex justify-between items-center gap-2">
+            <span className="font-black text-sm">
+              TOTAL AMOUNT
+            </span>
+
+            <span className="font-black text-lg whitespace-nowrap">
+              ₹{Number(
+                selectedOrder.order.grand_total || 0
+              ).toFixed(2)}
+            </span>
+          </div>
+
+          <p className="mt-2">
+            Payment: {selectedOrder.order.payment_method || "-"}
+          </p>
+
+          <p>
+            Payment Status: {selectedOrder.order.payment_status || "-"}
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center pt-4 pb-2">
+          <p className="font-bold text-xs">
+            THANK YOU!
+          </p>
+          <p className="mt-1">
+            Visit us again.
+          </p>
+          <p className="mt-3 text-[9px]">
+            *** CUSTOMER COPY ***
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Thermal receipt print styling */}
+    <style>{`
+      @media print {
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+
+        body * {
+          visibility: hidden !important;
+        }
+
+        #customer-order-bill,
+        #customer-order-bill * {
+          visibility: visible !important;
+        }
+
+        #customer-order-bill {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 72mm !important;
+          max-width: 72mm !important;
+          margin: 0 !important;
+          padding: 3mm !important;
+          font-family: monospace !important;
+          font-size: 10px !important;
+          color: #000 !important;
+          background: #fff !important;
+          box-shadow: none !important;
+        }
+
+        .print\\:hidden {
+          display: none !important;
+        }
+
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+        }
+      }
+    `}</style>
+  </div>
+)}
+
 
     </div>
   );

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import client from '../../api/client.js';
 import ProductmageUploader from '../../components/common/ProductmageUploader.jsx';
+import ImageUploader from '../../components/common/ImageUploader.jsx';
 import ImagePreview from '../../components/common/ImagePreview.jsx';
 import DeleteConfirmModal from '../../components/common/DeleteConfirmModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -809,7 +810,7 @@ export default function AdminProducts() {
                   <tr key={cat.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                        <ImagePreview src={cat.image} alt={cat.name} fallbackText="Cat" />
+                        <ImagePreview src={getProductImageUrl(cat.image)} alt={cat.name} fallbackText="Cat" />
                       </div>
                     </td>
                     <td className="p-3 font-bold text-slate-900">{cat.name}</td>
@@ -897,7 +898,7 @@ export default function AdminProducts() {
                   <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                        <ImagePreview src={b.logo} alt={b.name} fallbackText="Logo" />
+                        <ImagePreview src={getProductImageUrl(b.logo)} alt={b.name} fallbackText="Logo" />
                       </div>
                     </td>
                     <td className="p-3 font-bold text-slate-900">{b.name}</td>
@@ -1255,9 +1256,9 @@ export default function AdminProducts() {
               </div>
 
               {/* Reusable Image Uploader for Category */}
-              <ProductmageUploader
+              <ImageUploader
                 label="Category Banner Image"
-                value={catImage}
+                value={getProductImageUrl(catImage)}
                 onChange={setCatImage}
                 presetName={`cat-${catName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
               />

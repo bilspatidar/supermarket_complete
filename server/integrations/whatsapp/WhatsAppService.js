@@ -52,94 +52,228 @@ class WhatsAppService {
   /**
    * Send WhatsApp notification asynchronously
    */
-  async send({ recipient, templateKey, variables = {}, userId = null, orderId = null, deduplicateKey = null }) {
-    try {
-      if (!recipient) {
-        console.warn('[WhatsAppService] No recipient provided for template:', templateKey);
-        return false;
-      }
+ 
+async send({
+  recipient,
+  templateKey,
+  variables = {},
+  userId = null,
+  orderId = null,
+  deduplicateKey = null,
+}) {
+  let cleanPhone = '';
 
-      // Check deduplication (e.g. for birthday/anniversary on same day)
-      if (deduplicateKey) {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const existing = await db.get(
-          `SELECT id FROM notifications 
-           WHERE recipient = ? AND template_key = ? AND created_at >= ?`,
-          [recipient, templateKey, todayStart.toISOString()]
-        );
-        if (existing) {
-          console.log(`[WhatsAppService] Skipping duplicate ${templateKey} for ${recipient}`);
-          return false;
-        }
-      }
+  try {
+    if (!recipient) {
+      throw new Error('WhatsApp recipient is required');
+    }
 
-      const template = this.getTemplate(templateKey);
-      if (!template || !template.enabled) {
-        console.log(`[WhatsAppService] Template ${templateKey} not found or disabled.`);
-        return false;
-      }
+    cleanPhone = String(recipient).replace(/\D/g, '');
 
-      // Fill in default store_name if missing
-      if (!variables.store_name) {
-        const storeNameSetting = await db.get("SELECT value FROM store_settings WHERE key = 'store_name'");
-        variables.store_name = storeNameSetting?.value || 'FreshMart Supermarket';
-      }
+    if (!cleanPhone) {
+      throw new Error('Invalid WhatsApp recipient');
+    }
 
-      const messageBody = this.renderBody(template.body, variables);
-      const cleanPhone = String(recipient).replace(/[^0-9]/g, '');
+    // Deduplication
+    if (deduplicateKey) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-      // Check WhatsApp Cloud API configuration
-      const apiUrl = process.env.WHATSAPP_API_URL;
-      const token = process.env.WHATSAPP_ACCESS_TOKEN;
-      const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-      let providerMsgId = `WA-MSG-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-      let status = 'SENT';
-      let errorMsg = null;
-
-      if (token && phoneId && apiUrl && !token.includes('sample_')) {
-        try {
-          const resp = await fetch(`${apiUrl}/${phoneId}/messages`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              to: cleanPhone,
-              type: 'text',
-              text: { body: messageBody },
-            }),
-          });
-          const resData = await resp.json();
-          if (resData?.messages?.[0]?.id) {
-            providerMsgId = resData.messages[0].id;
-          } else {
-            errorMsg = JSON.stringify(resData?.error || 'Provider rejected');
-            status = 'FAILED';
-          }
-        } catch (provErr) {
-          status = 'FAILED';
-          errorMsg = provErr.message;
-        }
-      }
-
-      // Record in centralized notifications log
-      await db.run(
-        `INSERT INTO notifications (user_id, order_id, channel, recipient, template_key, provider_msg_id, message_body, status, error)
-         VALUES (?, ?, 'WHATSAPP', ?, ?, ?, ?, ?, ?)`,
-        [userId, orderId, cleanPhone, templateKey, providerMsgId, messageBody, status, errorMsg]
+      const existing = await db.get(
+        `SELECT id FROM notifications
+         WHERE recipient = ?
+           AND template_key = ?
+           AND created_at >= ?`,
+        [cleanPhone, templateKey, todayStart.toISOString()]
       );
 
-      console.log(`[WhatsAppService] Sent ${templateKey} to ${cleanPhone} [Status: ${status}]`);
-      return true;
-    } catch (err) {
-      console.error('[WhatsAppService] Send error:', err.message);
-      return false;
+      if (existing) {
+        throw new Error('Duplicate WhatsApp notification already exists');
+      }
     }
+
+    // Template configuration
+    const template = this.getTemplate(templateKey);
+
+    if (!template || !template.enabled) {
+      throw new Error(`WhatsApp template "${templateKey}" is missing or disabled`);
+    }
+
+    // Store name
+    if (!variables.store_name) {
+      const setting = await db.get(
+        "SELECT value FROM store_settings WHERE setting_key = 'store_name'"
+      );
+
+      variables = {
+        ...variables,
+        store_name: setting?.value || 'Swastik Supermarket',
+      };
+    }
+
+    const messageBody = this.renderBody(template.body, variables);
+
+    // Meta configuration
+    const apiUrl = process.env.WHATSAPP_API_URL;
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!apiUrl || !token || !phoneId || token.includes('sample_')) {
+      throw new Error('WhatsApp Cloud API credentials are missing or invalid');
+    }
+
+    // Use the configured API URL, for example:
+    // https://graph.facebook.com/vXX.X
+    const baseUrl = apiUrl.replace(/\/+$/, '');
+    const endpoint = `${baseUrl}/${phoneId}/messages`;
+
+    // Send approved Meta template for OTP authentication.
+    // Other notification templates continue to use text messages here.
+    let payload;
+
+    
+if (template.meta?.send_as_template) {
+  const metaConfig = template.meta;
+
+  const templateName = template.template_name;
+
+  if (!templateName) {
+    throw new Error(
+      `Meta template_name missing for ${templateKey}`
+    );
   }
+
+  const resolveValue = (key) => {
+    const value = variables[key] ?? metaConfig.defaults?.[key];
+
+    if (value === undefined || value === null) {
+      throw new Error(
+        `Missing WhatsApp template variable "${key}" for ${templateKey}`
+      );
+    }
+
+    return String(value);
+  };
+
+  const components = [];
+
+  // Build BODY parameters dynamically from JSON
+  const bodyParameterNames = metaConfig.body_parameters || [];
+
+  if (bodyParameterNames.length > 0) {
+    components.push({
+      type: 'body',
+      parameters: bodyParameterNames.map((key) => ({
+        type: 'text',
+        text: resolveValue(key),
+      })),
+    });
+  }
+
+  // Build button parameters dynamically from JSON
+  for (const button of metaConfig.buttons || []) {
+    components.push({
+      type: 'button',
+      sub_type: button.type,
+      index: String(button.index),
+      parameters: (button.parameters || []).map((key) => ({
+        type: 'text',
+        text: resolveValue(key),
+      })),
+    });
+  }
+
+  payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanPhone,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: {
+        code: template.language || 'en_US',
+      },
+      ...(components.length > 0 ? { components } : {}),
+    },
+  };
+} else {
+  // Preserve the existing behavior for other notifications
+  payload = {
+    messaging_product: 'whatsapp',
+    to: cleanPhone,
+    type: 'text',
+    text: { body: messageBody },
+  };
+}
+
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const resData = await resp.json().catch(() => ({}));
+
+    console.log('[WhatsApp API] HTTP status:', resp.status); 
+    console.log('[WhatsApp API] Response:', JSON.stringify(resData, null, 2));
+
+    if (!resp.ok || !resData?.messages?.[0]?.id) {
+  const providerError =
+    resData?.error?.message ||
+    JSON.stringify(resData?.error || resData) ||
+    `HTTP ${resp.status}`;
+
+  const err = new Error(
+    `WhatsApp API error (${resp.status}): ${providerError}`
+  );
+
+  err.status = resp.status;
+  err.providerError = resData?.error || resData;
+
+  throw err;
+}
+
+    const providerMsgId = resData.messages[0].id;
+
+    // Meta accepted the message. Delivery is not yet confirmed.
+    await db.run(
+      `INSERT INTO notifications
+        (user_id, order_id, channel, recipient, template_key,
+         provider_msg_id, message_body, status, error)
+       VALUES (?, ?, 'WHATSAPP', ?, ?, ?, ?, 'SENT', NULL)`,
+      [
+        userId,
+        orderId,
+        cleanPhone,
+        templateKey,
+        providerMsgId,
+        messageBody,
+      ]
+    );
+
+    console.log(
+      `[WhatsAppService] Meta accepted ${templateKey}; message ID: ${providerMsgId}`
+    );
+
+    return {
+      success: true,
+      messageId: providerMsgId,
+      status: 'SENT',
+    };
+  } catch (err) {
+    console.error(
+      `[WhatsAppService] Failed to send ${templateKey}:`,
+      err.message
+    );
+
+    throw err;
+  }
+}
+
 }
 
 export default new WhatsAppService();

@@ -32,11 +32,13 @@ export default function AdminLayout({ activePage, onNavigate, children }) {
 
   const navItems = [
     { id: 'admin-dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: 'dashboard.view' },
-    { id: 'admin-pos', label: 'In-House POS', icon: CreditCard, perm: 'orders.create' },
+    // { id: 'admin-pos', label: 'In-House POS', icon: CreditCard, perm: 'orders.create' },
     { id: 'admin-orders', label: 'Orders', icon: ShoppingCart, perm: 'orders.view' },
     { id: 'admin-products', label: 'Products', icon: Package, perm: 'products.view' },
     { id: 'admin-inventory', label: 'Inventory Ledger', icon: Layers, perm: 'inventory.view' },
     { id: 'admin-customers', label: 'Customers', icon: Users, perm: 'customers.view' },
+    { id: 'admin-reviews', label: 'Reviews', icon: Users, perm: 'reviews.view' },
+    { id: 'admin-contacts', label: 'Contacts', icon: CreditCard, perm: 'contacts.view' },
     { id: 'admin-delivery', label: 'Delivery Zones', icon: MapPin, perm: 'delivery.view' },
     { id: 'admin-membership', label: 'VIP Membership', icon: Award, perm: 'membership.view' },
     { id: 'admin-coupons', label: 'Coupons', icon: Tag, perm: 'coupons.view' },
@@ -62,7 +64,7 @@ export default function AdminLayout({ activePage, onNavigate, children }) {
             </div>
             <div>
               <span className="font-black text-white text-base tracking-tight block">
-                Fresh<span className="text-emerald-500">Mart</span> Staff
+                Swastik<span className="text-emerald-500">Supermarket</span>
               </span>
               <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
                 {roles[0] || 'Staff Member'}

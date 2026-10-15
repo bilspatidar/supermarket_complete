@@ -310,7 +310,7 @@ export default function AdminPages() {
                     type="text"
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
-                    placeholder="e.g. FreshMart Terms & Conditions"
+                    placeholder="e.g. Swastik Supermarket Terms & Conditions"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>

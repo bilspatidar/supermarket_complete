@@ -4,34 +4,86 @@ class ReportService {
   /**
    * Helper to generate date filter clause and parameters for SQLite
    */
-  getDateFilter(colName = 'created_at', period = 'last30', fromDate = null, toDate = null) {
-    if (period === 'today') {
-      return { clause: `DATE(${colName}) = DATE('now')`, args: [] };
-    }
-    if (period === 'yesterday') {
-      return { clause: `DATE(${colName}) = DATE('now', '-1 day')`, args: [] };
-    }
-    if (period === 'last7') {
-      return { clause: `DATE(${colName}) >= DATE('now', '-7 days')`, args: [] };
-    }
-    if (period === 'last30') {
-      return { clause: `DATE(${colName}) >= DATE('now', '-30 days')`, args: [] };
-    }
-    if (period === 'thisMonth') {
-      return { clause: `strftime('%Y-%m', ${colName}) = strftime('%Y-%m', 'now')`, args: [] };
-    }
-    if (period === 'lastMonth') {
-      return { clause: `strftime('%Y-%m', ${colName}) = strftime('%Y-%m', 'now', '-1 month')`, args: [] };
-    }
-    if (period === 'custom' && fromDate && toDate) {
-      return { clause: `DATE(${colName}) >= DATE(?) AND DATE(${colName}) <= DATE(?)`, args: [fromDate, toDate] };
-    }
-    if (period === 'custom' && fromDate) {
-      return { clause: `DATE(${colName}) >= DATE(?)`, args: [fromDate] };
-    }
-    // Default last 30 days
-    return { clause: `DATE(${colName}) >= DATE('now', '-30 days')`, args: [] };
+
+getDateFilter(
+  colName = 'created_at',
+  period = 'last30',
+  fromDate = null,
+  toDate = null
+) {
+  // Validate column name because SQL identifiers cannot use ? placeholders.
+  if (!/^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(colName)) {
+    throw new Error('Invalid date column name');
   }
+
+  if (period === 'today') {
+    return {
+      clause: `DATE(${colName}) = CURDATE()`,
+      args: [],
+    };
+  }
+
+  if (period === 'yesterday') {
+    return {
+      clause: `DATE(${colName}) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)`,
+      args: [],
+    };
+  }
+
+  if (period === 'last7') {
+    return {
+      clause: `${colName} >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+               AND ${colName} < CURDATE() + INTERVAL 1 DAY`,
+      args: [],
+    };
+  }
+
+  if (period === 'last30') {
+    return {
+      clause: `${colName} >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+               AND ${colName} < CURDATE() + INTERVAL 1 DAY`,
+      args: [],
+    };
+  }
+
+  if (period === 'thisMonth') {
+    return {
+      clause: `${colName} >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+               AND ${colName} < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')`,
+      args: [],
+    };
+  }
+
+  if (period === 'lastMonth') {
+    return {
+      clause: `${colName} >= DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01')
+               AND ${colName} < DATE_FORMAT(CURDATE(), '%Y-%m-01')`,
+      args: [],
+    };
+  }
+
+  if (period === 'custom' && fromDate && toDate) {
+    return {
+      clause: `${colName} >= ? AND ${colName} < DATE_ADD(?, INTERVAL 1 DAY)`,
+      args: [fromDate, toDate],
+    };
+  }
+
+  if (period === 'custom' && fromDate) {
+    return {
+      clause: `${colName} >= ?`,
+      args: [fromDate],
+    };
+  }
+
+  // Default: last 30 days, including today.
+  return {
+    clause: `${colName} >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+             AND ${colName} < CURDATE() + INTERVAL 1 DAY`,
+    args: [],
+  };
+}
+
 
 
     /**

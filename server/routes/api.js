@@ -26,6 +26,9 @@ import reportController from '../controllers/reportController.js';
 import cmsController from '../controllers/cmsController.js';
 import staffController from '../controllers/staffController.js';
 import roleController from '../controllers/roleController.js';
+import contactController from '../controllers/contactController.js';
+import reviewsController from '../controllers/reviewsController.js';
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -194,6 +197,43 @@ router.post(
   deliveryController.createSubArea
 );
 
+// Update Area
+router.put(
+  '/delivery/areas/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.update'),
+  deliveryController.updateArea
+);
+
+// Delete Area
+router.delete(
+  '/delivery/areas/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.delete'),
+  deliveryController.deleteArea
+);
+
+// Update Sub-Area
+router.put(
+  '/delivery/sub-areas/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.update'),
+  deliveryController.updateSubArea
+);
+
+// Delete Sub-Area
+router.delete(
+  '/delivery/sub-areas/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('delivery.delete'),
+  deliveryController.deleteSubArea
+);
+
+
 // -------------------------------------------------------------
 // 5. Customer Addresses (Customer-Only)
 // -------------------------------------------------------------
@@ -206,6 +246,47 @@ router.put('/addresses/:id/default', authenticate, requireCustomer, customerCont
 // 6. Orders & Pricing Engine
 // -------------------------------------------------------------
 router.post('/orders/calculate', optionalAuthenticate, orderController.calculateOrderPricing);
+
+
+// -------------------------------------------------------------
+// 6. Contacts
+// -------------------------------------------------------------
+router.post(
+  '/contacts',
+  optionalAuthenticate,
+  contactController.createContactEnquiry
+);
+
+router.get(
+  '/contacts',
+  authenticate,
+  contactController.getContactEnquiries
+);
+
+router.delete(
+  '/contacts/:id',
+  authenticate,
+  contactController.deleteContactEnquiry
+);
+
+router.put(
+  '/contacts/:id/default',
+  authenticate,
+  contactController.updateContactEnquiryStatus
+);
+
+/////Reviews///
+
+router.get('/reviews', reviewsController.getReviews);
+
+// Customer: must be logged in to submit a review.
+router.post('/reviews', authenticate, reviewsController.createReview);
+
+// Admin: authentication is required; controller checks the admin role.
+router.get('/reviews/admin', authenticate, reviewsController.getAdminReviews);
+router.put('/reviews/:id/status', authenticate, reviewsController.updateReviewStatus);
+router.delete('/reviews/:id', authenticate, reviewsController.deleteReview);
+
 
 // Customer-only Order APIs
 router.get('/customer/orders', authenticate, requireCustomer, orderController.getCustomerOrders);
@@ -230,11 +311,17 @@ router.get(
   requirePermission('orders.view'),
   orderController.exportOrders
 );
+// router.get(
+//   '/orders/:id',
+//   authenticate,
+//   requireInternal,
+//   requirePermission('orders.view'),
+//   orderController.getOrderById
+// );
+
 router.get(
   '/orders/:id',
   authenticate,
-  requireInternal,
-  requirePermission('orders.view'),
   orderController.getOrderById
 );
 router.put(
@@ -274,6 +361,7 @@ router.post(
 // 8. Membership
 // -------------------------------------------------------------
 router.get('/membership/plans', membershipController.getPlans);
+router.get('/adminmembership/plans', membershipController.getAdminPlans);
 router.get('/membership/my-status', authenticate, requireCustomer, membershipController.getMyMembership);
 router.post('/membership/subscribe', authenticate, requireCustomer, membershipController.subscribePlan);
 router.post(
@@ -282,6 +370,13 @@ router.post(
   requireInternal,
   requirePermission('membership.create'),
   membershipController.createPlan
+);
+router.put(
+  '/membership/plans/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('membership.update'),
+  membershipController.updatePlan
 );
 
 // -------------------------------------------------------------
@@ -304,6 +399,14 @@ router.delete(
   couponController.deleteCoupon
 );
 
+router.put(
+  '/coupons/:id',
+  authenticate,
+  requireInternal,
+  requirePermission('coupons.update'),
+  couponController.updateCoupon
+);
+
 // -------------------------------------------------------------
 // 10. Welcome Bonus & Ledger
 // -------------------------------------------------------------
@@ -316,11 +419,41 @@ router.post(
   bonusController.adminAdjustBonus
 );
 
+
 // -------------------------------------------------------------
-// 11. Payments
+// 11. Payments — Razorpay
 // -------------------------------------------------------------
-router.post('/payments/razorpay/verify', authenticate, requireCustomer, paymentController.verifyRazorpayPayment);
-router.post('/payments/razorpay/webhook', paymentController.handleRazorpayWebhook);
+
+// Create a temporary checkout session and a real Razorpay order.
+router.post(
+  '/payments/razorpay/create-order',
+  authenticate,
+  requireCustomer,
+  paymentController.createRazorpayOrder
+);
+
+// Verify payment and finalize the permanent order.
+router.post(
+  '/payments/razorpay/verify',
+  authenticate,
+  requireCustomer,
+  paymentController.verifyRazorpayPayment
+);
+
+// Retrieve checkout status for the authenticated customer.
+router.get(
+  '/payments/razorpay/checkout/:checkoutKey',
+  authenticate,
+  requireCustomer,
+  paymentController.getRazorpayCheckoutStatus
+);
+
+// Razorpay webhook: authentication is performed using its HMAC signature.
+router.post(
+  '/payments/razorpay/webhook',
+  paymentController.handleRazorpayWebhook
+);
+
 
 // -------------------------------------------------------------
 // 12. Settings

@@ -4,11 +4,14 @@ import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
 import { useDelivery } from '../../context/DeliveryContext.jsx';
+import { useStoreSettings } from '../../context/StoreSettingsContext';
+
 
 export default function CheckoutPage({ onNavigate }) {
   const { user, isAuthenticated } = useAuth();
   const { items, clearCart } = useCart();
   const { zones, slots, selectedArea, selectedSubArea, setZoneSelection } = useDelivery();
+  const { storeSettings } = useStoreSettings();
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('new');
@@ -27,6 +30,12 @@ export default function CheckoutPage({ onNavigate }) {
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
+
+  const codEnabled =
+  String(storeSettings?.enable_cod ?? 'YES').toUpperCase() === 'YES';
+
+  const razorpayEnabled =
+    String(storeSettings?.enable_payment_gateway ?? 'YES').toUpperCase() === 'YES';
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -123,88 +132,269 @@ export default function CheckoutPage({ onNavigate }) {
     setCouponCode('');
   }
 
-  async function handlePlaceOrder() {
-    if (!isAuthenticated) {
-      alert('Please log in or register before completing your order.');
-      onNavigate('login');
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
       return;
     }
 
-    if (user?.account_type === 'INTERNAL') {
-      alert('Access Denied: Internal staff/administrator accounts cannot place customer online store orders. Please switch to In-House POS or use a customer account.');
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(true), { once: true });
+      existingScript.addEventListener('error', () => resolve(false), { once: true });
       return;
     }
 
-    if (!selectedArea || !selectedSubArea) {
-      alert('Please select a delivery Area and Sub-Area.');
-      return;
-    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
-    if (!addressLine.trim() || !pincode.trim()) {
-      alert('Please enter your street address and pincode.');
-      return;
-    }
 
-    if (calcError) {
-      alert(`Cannot place order: ${calcError}`);
-      return;
-    }
+  
+async function handlePlaceOrder() {
+  if (!isAuthenticated) {
+    alert('Please log in or register before completing your order.');
+    onNavigate('login');
+    return;
+  }
 
-    setPlacingOrder(true);
-    try {
-      // If new address, save to customer_addresses
-      if (selectedAddressId === 'new') {
-        client.post('/addresses', {
-          area_id: selectedArea.id,
-          sub_area_id: selectedSubArea.id,
-          address_line: addressLine.trim(),
-          landmark: landmark.trim(),
-          pincode: pincode.trim(),
-          is_default: savedAddresses.length === 0 ? 1 : 0,
-        }).catch(() => {});
-      }
+  if (user?.account_type === 'INTERNAL') {
+    alert(
+      'Access Denied: Internal staff/administrator accounts cannot place customer online store orders. Please use a customer account.'
+    );
+    return;
+  }
 
-      const res = await client.post('/orders', {
-        items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-        couponCode: appliedCoupon || null,
-        useBonus,
-        areaId: selectedArea.id,
-        subAreaId: selectedSubArea.id,
-        deliverySlotId: Number(selectedSlotId),
-        deliveryAddress: addressLine.trim(),
+  if (!selectedArea || !selectedSubArea) {
+    alert('Please select a delivery Area and Sub-Area.');
+    return;
+  }
+
+  if (!addressLine.trim() || !pincode.trim()) {
+    alert('Please enter your street address and pincode.');
+    return;
+  }
+
+  if (calcError) {
+    alert(`Cannot place order: ${calcError}`);
+    return;
+  }
+
+  if (!items.length) {
+    alert('Your basket is empty.');
+    return;
+  }
+
+  if (paymentMethod === 'RAZORPAY' && !razorpayEnabled) {
+    alert('Online payment is currently unavailable.');
+    return;
+  }
+
+  if (paymentMethod === 'COD' && !codEnabled) {
+    alert('Cash on Delivery is currently unavailable.');
+    return;
+  }
+
+  setPlacingOrder(true);
+
+  try {
+    // Save a newly entered address without blocking checkout.
+    if (selectedAddressId === 'new') {
+      client.post('/addresses', {
+        area_id: selectedArea.id,
+        sub_area_id: selectedSubArea.id,
+        address_line: addressLine.trim(),
         landmark: landmark.trim(),
         pincode: pincode.trim(),
-        paymentMethod,
-        notificationPhone: notificationPhone.trim() || user.mobile,
-        source: 'ONLINE',
+        is_default: savedAddresses.length === 0 ? 1 : 0,
+      }).catch((error) => {
+        console.warn('Address save failed:', error.message);
+      });
+    }
+
+    const checkoutPayload = {
+      items: items.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+      })),
+      couponCode: appliedCoupon || null,
+      useBonus,
+      areaId: selectedArea.id,
+      subAreaId: selectedSubArea.id,
+      deliverySlotId: Number(selectedSlotId),
+      deliveryAddress: addressLine.trim(),
+      landmark: landmark.trim(),
+      pincode: pincode.trim(),
+      notificationPhone: notificationPhone.trim() || user?.mobile || '',
+      source: 'ONLINE',
+    };
+
+    // COD keeps the existing order-placement flow.
+    if (paymentMethod === 'COD') {
+      const res = await client.post('/orders', {
+        ...checkoutPayload,
+        paymentMethod: 'COD',
       });
 
-      if (res.success && res.data) {
-        const orderData = res.data;
-
-        // If Razorpay payment method
-        if (paymentMethod === 'RAZORPAY' && orderData.razorpayOrder) {
-          // Verify client-side payment completion
-          await client.post('/payments/razorpay/verify', {
-            orderId: orderData.orderId,
-            razorpay_order_id: orderData.razorpayOrder.id,
-            razorpay_payment_id: `pay_${Date.now()}_mock`,
-            razorpay_signature: 'valid_signature',
-          });
-        }
-
-        clearCart();
-        onNavigate('order-success', {
-          orderNumber: orderData.orderNumber,
-          orderId: orderData.orderId,
-        });
+      if (!res.success || !res.data) {
+        throw new Error(res.message || 'Unable to place COD order');
       }
-    } catch (err) {
-      alert(`Order placement failed: ${err.message}`);
-    } finally {
-      setPlacingOrder(false);
+
+      const order = res.data;
+
+      clearCart();
+      onNavigate('order-success', {
+        orderNumber: order.orderNumber,
+        orderId: order.orderId,
+      });
+
+      return;
     }
+
+    // Razorpay must NEVER call POST /orders before payment verification.
+    const scriptLoaded = await loadRazorpayScript();
+
+    if (!scriptLoaded || !window.Razorpay) {
+      throw new Error('Unable to load Razorpay Checkout. Please try again.');
+    }
+
+    // 1. Create a temporary checkout session and provider order.
+const createRes = await client.post(
+  '/payments/razorpay/create-order',
+  checkoutPayload
+);
+
+   if (!createRes.success) {
+  throw new Error(
+    createRes.message || 'Unable to initialize Razorpay payment'
+  );
+}
+
+   const paymentData = createRes.data ?? createRes;
+
+console.log('[Razorpay] Payment data:', paymentData);
+
+if (
+  !paymentData.checkoutKey ||
+  !paymentData.razorpayOrder?.id ||
+  !paymentData.keyId
+) {
+  throw new Error('Invalid Razorpay checkout initialization response');
+}
+    // 2. Open the real Razorpay payment window.
+    const options = {
+      key: paymentData.keyId,
+      amount: paymentData.razorpayOrder.amount,
+      currency: paymentData.razorpayOrder.currency || 'INR',
+      name: storeSettings?.store_name || 'Swastik Supermarket',
+      description: 'Online supermarket order',
+      order_id: paymentData.razorpayOrder.id,
+
+      prefill: {
+        name: paymentData.customer?.name || user?.name || '',
+        contact:
+          paymentData.customer?.mobile ||
+          notificationPhone.trim() ||
+          user?.mobile ||
+          '',
+      },
+
+      notes: {
+        checkout_key: paymentData.checkoutKey,
+      },
+
+      theme: {
+        color: '#047857',
+      },
+
+      // 3. Verify using the REAL response from Razorpay.
+      handler: async function (response) {
+        try {
+          const verifyRes = await client.post(
+            '/payments/razorpay/verify',
+            {
+              checkoutKey: paymentData.checkoutKey,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }
+          );
+
+          if (!verifyRes.success || !verifyRes.order) {
+            throw new Error(
+              verifyRes.message ||
+              'Payment verification is pending. Please check your order status.'
+            );
+          }
+
+          const order = verifyRes.order;
+
+          clearCart();
+
+          onNavigate('order-success', {
+            orderNumber: order.order_number || order.orderNumber,
+            orderId: order.id || order.orderId,
+          });
+        } catch (error) {
+          console.error('[Checkout] Razorpay verification error:', error);
+
+          alert(
+            'Payment was submitted, but order confirmation could not be completed. Do not pay again yet. Please check your order/payment status or contact support.'
+          );
+        } finally {
+          setPlacingOrder(false);
+        }
+      },
+
+      modal: {
+        ondismiss: function () {
+          setPlacingOrder(false);
+        },
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+
+    razorpay.on('payment.failed', function (response) {
+      console.error('[Razorpay] Payment failed:', response.error);
+
+      alert(
+        response.error?.description ||
+        'Payment failed. You can try again.'
+      );
+
+      setPlacingOrder(false);
+    });
+
+
+    console.log('[Razorpay] Opening checkout:', {
+  key: options.key,
+  order_id: options.order_id,
+  amount: options.amount,
+  currency: options.currency,
+});
+
+razorpay.open();
+
+
+    razorpay.open();
+  } catch (error) {
+    console.error('[Checkout] Order/payment initialization error:', error);
+
+    alert(`Order placement failed: ${error.message}`);
+    setPlacingOrder(false);
   }
+}
+
 
   if (items.length === 0) {
     return (
@@ -471,46 +661,7 @@ export default function CheckoutPage({ onNavigate }) {
             </div>
           </div>
 
-          {/* Section 5: Payment Method */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>5. Payment Method</span>
-            </h3>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('COD')}
-                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-center gap-2.5 ${
-                  paymentMethod === 'COD'
-                    ? 'border-emerald-600 bg-emerald-50 font-bold text-emerald-950'
-                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <Banknote className="w-5 h-5 text-emerald-600" />
-                <div>
-                  <div>Cash on Delivery (COD)</div>
-                  <div className="text-[10px] text-slate-500 font-normal">Pay cash/UPI at doorstep</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('RAZORPAY')}
-                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-center gap-2.5 ${
-                  paymentMethod === 'RAZORPAY'
-                    ? 'border-emerald-600 bg-emerald-50 font-bold text-emerald-950'
-                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <CreditCard className="w-5 h-5 text-indigo-600" />
-                <div>
-                  <div>Razorpay Online</div>
-                  <div className="text-[10px] text-slate-500 font-normal">UPI, Cards, NetBanking</div>
-                </div>
-              </button>
-            </div>
-          </div>
+       
 
         </div>
 
@@ -634,10 +785,10 @@ export default function CheckoutPage({ onNavigate }) {
                   </span>
                 </div>
 
-                <div className="flex justify-between text-slate-600">
+                {/* <div className="flex justify-between text-slate-600">
                   <span>Taxes (GST)</span>
                   <span>₹{calculation.tax}</span>
-                </div>
+                </div> */}
 
                 <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline text-sm">
                   <span className="font-bold text-slate-900">Grand Total</span>
@@ -648,6 +799,46 @@ export default function CheckoutPage({ onNavigate }) {
               <div className="py-6 text-center text-xs text-slate-400">Calculating order pricing...</div>
             ) : null}
 
+   {/* Section 5: Payment Method */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <span>5. Payment Method</span>
+            </h3>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('COD')}
+                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-center gap-2.5 ${
+                  paymentMethod === 'COD'
+                    ? 'border-emerald-600 bg-emerald-50 font-bold text-emerald-950'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <Banknote className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <div>Cash on Delivery (COD)</div>
+                  <div className="text-[10px] text-slate-500 font-normal">Pay cash/UPI at doorstep</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('RAZORPAY')}
+                className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-center gap-2.5 ${
+                  paymentMethod === 'RAZORPAY'
+                    ? 'border-emerald-600 bg-emerald-50 font-bold text-emerald-950'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <CreditCard className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <div>Razorpay Online</div>
+                  <div className="text-[10px] text-slate-500 font-normal">UPI, Cards, NetBanking</div>
+                </div>
+              </button>
+            </div>
+          </div>
             {/* Place Order CTA */}
             <button
               type="button"

@@ -17,6 +17,11 @@ export default function ShopPage({ initialCategory, initialSearch, onNavigate })
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  useEffect(() => {
+  setSearch(initialSearch || '');
+  }, [initialSearch]);
+
+  
 
   const PRODUCTS_PER_PAGE = 50;
 

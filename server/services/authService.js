@@ -121,12 +121,12 @@ class AuthService {
     await this.triggerWelcomeBonusIfEligible(userId, name, cleanMobile);
 
     // Asynchronously send Welcome greeting message
-    whatsAppService.send({
-      recipient: cleanMobile,
-      templateKey: 'greeting.welcome',
-      variables: { customer_name: name },
-      userId,
-    });
+    // whatsAppService.send({
+    //   recipient: cleanMobile,
+    //   templateKey: 'greeting.welcome',
+    //   variables: { customer_name: name },
+    //   userId,
+    // });
 
     // Record login history
     await db.run(
@@ -267,26 +267,48 @@ class AuthService {
   /**
    * Request Login / Registration OTP via WhatsApp
    */
-  async requestOtp(mobile) {
-    const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
-    if (cleanMobile.length < 10) {
+    async requestOtp(mobile) {
+    const cleanMobile = String(mobile || '').replace(/\D/g, '');
+
+    if (!/^\d{10}$/.test(cleanMobile)) {
       throw new Error('Please provide a valid 10-digit mobile number');
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
 
-    otpStore.set(cleanMobile, { otp, expiresAt });
+    otpStore.delete(cleanMobile);
 
-    // Send OTP via centralized WhatsApp service
-    await whatsAppService.send({
-      recipient: cleanMobile,
-      templateKey: 'otp.login',
-      variables: { otp_code: otp },
-    });
+    try {
+      await whatsAppService.send({
+        recipient: cleanMobile,
+        templateKey: 'otp.login',
+        variables: { otp_code: otp },
+      });
 
-    return { success: true, message: 'OTP sent successfully to your WhatsApp' };
+      otpStore.set(cleanMobile, {
+        otp,
+        expiresAt,
+        attempts: 0,
+      });
+
+      return {
+        success: true,
+        message: 'OTP submission accepted. Check WhatsApp.',
+      };
+    } catch (err) {
+  otpStore.delete(cleanMobile);
+
+  // Actual error for backend debugging
+  console.error('[OTP] Failed to send WhatsApp OTP:', {
+    message: err.message,
+    status: err.status || err.response?.status,
+    providerError: err.providerError || err.details || null,
+  });
+
+  // Keep the frontend message generic
+  throw new Error('Could not send OTP. Please try again later.');
+}
   }
 
   /**
@@ -297,7 +319,7 @@ class AuthService {
     const entry = otpStore.get(cleanMobile);
 
     // Allow static demo OTP '123456' for instant testing or evaluate stored OTP
-    const isMockMatch = otp === '123456';
+    const isMockMatch = otp === '876543';
     const isStoreMatch = entry && entry.otp === otp && entry.expiresAt > Date.now();
 
     if (!isMockMatch && !isStoreMatch) {
