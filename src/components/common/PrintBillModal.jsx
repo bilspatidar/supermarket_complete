@@ -5,7 +5,7 @@ import client from '../../api/client.js';
 export default function PrintBillModal({ orderData, onClose }) {
   const [thermalMode, setThermalMode] = useState(true); // Default 80mm thermal receipt
   const [storeSettings, setStoreSettings] = useState({
-    store_name: 'FreshMart Supermarket',
+    store_name: 'Swastik Supermarket',
     store_address: 'Plot 42, Commercial Zone, Jabalpur, MP, 482002',
     store_mobile: '+91 98765 43210',
     store_gst: '23AAAAA0000A1Z5',
@@ -142,7 +142,7 @@ export default function PrintBillModal({ orderData, onClose }) {
             {/* Store Header */}
             <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
               <h2 className="font-black text-sm tracking-tight uppercase">
-                {storeSettings.store_name || 'FreshMart Supermarket'}
+                {storeSettings.store_name || 'Swastik Supermarket'}
               </h2>
               <p className="text-[10px] text-slate-600">
                 {storeSettings.store_address}

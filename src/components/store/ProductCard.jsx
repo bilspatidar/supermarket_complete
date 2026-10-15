@@ -51,7 +51,7 @@ export default function ProductCard({ product, onSelect }) {
           {/* Brand & Unit */}
           <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
             <span className="font-semibold text-emerald-700 truncate max-w-[120px]">
-              {product.brand_name || 'FreshMart'}
+              {product.brand_name || 'Swastik'}
             </span>
             <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-medium">
               {product.unit}

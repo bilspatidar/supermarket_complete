@@ -115,10 +115,13 @@ class CartService {
       if (quantity > product.stock) {
         throw new Error(`Only ${product.stock} units available in stock`);
       }
-      await db.run(
-        `INSERT INTO cart_items (cart_id, product_id, quantity) VALUES (?, ?, ?)
-         ON CONFLICT(cart_id, product_id) DO UPDATE SET quantity = ?, updated_at = CURRENT_TIMESTAMP`,
-        [cart.id, productId, quantity, quantity]
+    await db.run(
+        `INSERT INTO cart_items (cart_id, product_id, quantity)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          quantity = VALUES(quantity),
+          updated_at = CURRENT_TIMESTAMP`,
+        [cart.id, productId, quantity]
       );
     }
 

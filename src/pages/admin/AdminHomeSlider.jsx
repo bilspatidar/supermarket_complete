@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Layers, Plus, Edit2, Trash2, CheckCircle, XCircle, ArrowUpDown, Calendar, Link, Image as ImageIcon } from 'lucide-react';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/common/ImageUploader.jsx';
+import { getGeneralImageUrl } from '../../utils/image.js';
+import ImagePreview from '../../components/common/ImagePreview.jsx';
+
+
 
 export default function AdminHomeSlider() {
   const [sliders, setSliders] = useState([]);
@@ -178,10 +182,13 @@ export default function AdminHomeSlider() {
 
                     <td className="p-3.5">
                       <div className="w-24 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                        <img
-                          src={s.image}
-                          alt={s.title}
-                          className="w-full h-full object-cover"
+                       
+                        
+                        <ImagePreview
+                                                     src={getGeneralImageUrl(s.image)}
+                                                       alt={s.title}
+                                                      fallbackText="None"
+                                                        className="w-full h-full object-cover"
                         />
                       </div>
                     </td>

@@ -143,7 +143,7 @@ export default function AdminSettings() {
                   type="text"
                   value={settings.store_name || ''}
                   onChange={(e) => handleChange('store_name', e.target.value)}
-                  placeholder="e.g. FreshMart Supermarket"
+                  placeholder="e.g. Swastik Supermarket"
                   required
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900"
                 />
@@ -371,6 +371,39 @@ export default function AdminSettings() {
           <h3 className="text-sm font-bold text-slate-900 pb-2 border-b border-slate-100">
             Financial &amp; Tax Configuration
           </h3>
+                  
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                Enable Payment Gateway
+              </label>
+              <select
+                value={settings.enable_payment_gateway || 'NO'}
+                onChange={(e) =>
+                  handleChange('enable_payment_gateway', e.target.value)
+                }
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+              >
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">
+                Enable COD
+              </label>
+              <select
+                value={settings.enable_cod || 'NO'}
+                onChange={(e) => handleChange('enable_cod', e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+              >
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+          </div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

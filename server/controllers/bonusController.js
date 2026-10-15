@@ -1,9 +1,9 @@
 import db from '../../database/connection.js';
-
+import { toMySQLDateTime } from '../../src/utils/dateTime.js';
 export async function getBonusLedger(req, res) {
   try {
     const userId = req.user.id;
-    const nowIso = new Date().toISOString();
+    const nowIso = toMySQLDateTime();
 
     const transactions = await db.query(
       `SELECT * FROM customer_bonus_transactions 
@@ -27,7 +27,7 @@ export async function getBonusLedger(req, res) {
     const availableBalance = Math.max(0, Number(credits?.total || 0) - Number(debits?.total || 0));
 
     // Fetch welcome bonus rules
-    const settings = await db.query("SELECT key, value FROM store_settings WHERE key LIKE 'welcome_bonus_%'");
+    const settings = await db.query("SELECT setting_key as  `key`, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'");
     const rules = {};
     settings.forEach(s => { rules[s.key] = s.value; });
 

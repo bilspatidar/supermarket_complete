@@ -21,8 +21,11 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
 import { useDelivery } from '../../context/DeliveryContext.jsx';
 import voiceSearch from '../../services/voiceSearch.js';
+import { useStoreSettings } from '../../context/StoreSettingsContext';
 
-export default function Header({ onNavigate, currentRoute }) {
+import { getGeneralImageUrl } from '../../utils/image.js';
+
+export default function Header({ onNavigate, currentRoute}) {
   const { user, isStaff, isAdmin, logout } = useAuth();
   const { count, subtotal, setIsDrawerOpen } = useCart();
   const { selectedArea, selectedSubArea, setIsZoneModalOpen } = useDelivery();
@@ -31,6 +34,8 @@ export default function Header({ onNavigate, currentRoute }) {
   const [isListening, setIsListening] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [userDropdown, setUserDropdown] = useState(false);
+  const { storeSettings } = useStoreSettings();
+
 
   function handleSearchSubmit(e) {
     if (e) e.preventDefault();
@@ -81,10 +86,11 @@ export default function Header({ onNavigate, currentRoute }) {
       <div className="bg-emerald-900 text-emerald-50 text-xs py-1.5 px-4 font-medium flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className="bg-emerald-600 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase">Express</span>
-          <span>⚡ 100% Farm Fresh Produce &amp; Groceries Delivered in Jabalpur</span>
+          <span>⚡ {storeSettings?.store_name || 'Swastik Supermarket'}</span>
         </div>
         <div className="hidden md:flex items-center gap-4 text-emerald-100 text-[11px]">
-          <span>Daily Hours: 08:00 AM - 10:00 PM</span>
+          <span>Daily Hours: {storeSettings?.store_opening_time || '08:00'} –{' '}
+              {storeSettings?.store_closing_time || '22:00'}</span>
           <span className="text-emerald-500">|</span>
           <button
             onClick={() => onNavigate('cms', { slug: 'contact' })}
@@ -104,15 +110,23 @@ export default function Header({ onNavigate, currentRoute }) {
             onClick={() => onNavigate('home')}
             className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-hidden shrink-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform">
+            <div className="w-15 h-15 rounded-xl bg-white text-emerald-600 flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform overflow-hidden">
+            {storeSettings?.store_logo ? (
+              <img
+                src={getGeneralImageUrl(storeSettings.store_logo)}
+                alt={storeSettings?.store_name || 'Store Logo'}
+                className="w-full h-full object-contain p-1"
+              />
+            ) : (
               <Store className="w-6 h-6" />
-            </div>
+            )}
+          </div>
             <div>
               <span className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-1">
-                Fresh<span className="text-emerald-600">Mart</span>
+                {storeSettings?.store_name || 'Swastik Supermarket'}
               </span>
               <span className="hidden sm:block text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
-                Supermarket &amp; POS
+                {storeSettings?.store_tagline || ''}
               </span>
             </div>
           </button>

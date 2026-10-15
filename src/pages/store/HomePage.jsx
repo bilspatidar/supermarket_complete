@@ -16,13 +16,21 @@ import {
 } from 'lucide-react';
 import client from '../../api/client.js';
 import ProductCard from '../../components/store/ProductCard.jsx';
+import { getGeneralImageUrl } from '../../utils/image.js';
+import ReviewSection from '../../components/reviews/ReviewSection.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useStoreSettings } from '../../context/StoreSettingsContext';
+
+
+
 
 export default function HomePage({ onNavigate }) {
+  const { user, isStaff, isAdmin, logout } = useAuth();
   const [sliders, setSliders] = useState([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [categories, setCategories] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [storeSettings, setStoreSettings] = useState(null);
+  const { storeSettings } = useStoreSettings();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,17 +39,15 @@ export default function HomePage({ onNavigate }) {
 
   async function loadHomeData() {
     try {
-      const [sliderRes, catRes, prodRes, settingsRes] = await Promise.all([
+      const [sliderRes, catRes, prodRes] = await Promise.all([
         client.get('/cms/sliders'),
         client.get('/categories'),
-        client.get('/products?featured=1&limit=8'),
-        client.get('/settings'),
+        client.get('/products?limit=40'),
       ]);
 
       if (sliderRes.success) setSliders(sliderRes.data || []);
       if (catRes.success) setCategories(catRes.data || []);
       if (prodRes.success) setFeaturedProducts(prodRes.data?.products || []);
-      if (settingsRes.success) setStoreSettings(settingsRes.data || null);
     } catch (err) {
       console.warn('Failed to load home data:', err.message);
     } finally {
@@ -87,10 +93,10 @@ export default function HomePage({ onNavigate }) {
         <section className="relative rounded-3xl overflow-hidden shadow-xl bg-slate-900 mx-4 sm:mx-6 lg:mx-8 mt-4 group">
           <picture className="absolute inset-0 z-0">
             {activeSlider.mobile_image && (
-              <source media="(max-width: 640px)" srcSet={activeSlider.mobile_image} />
+              <source media="(max-width: 640px)" srcSet={getGeneralImageUrl(activeSlider.mobile_image)} />
             )}
             <img
-              src={activeSlider.image}
+              src={getGeneralImageUrl(activeSlider.image)}
               alt={activeSlider.title}
               className="w-full h-full object-cover opacity-50 transform scale-102 transition-transform duration-700"
             />
@@ -100,7 +106,7 @@ export default function HomePage({ onNavigate }) {
           <div className="relative z-10 max-w-2xl p-8 sm:p-14 lg:p-16 text-white space-y-4">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold uppercase tracking-wider backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Farm Fresh Supermarket</span>
+              <span>Swastik Supermarket</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -122,13 +128,7 @@ export default function HomePage({ onNavigate }) {
                 <span>{activeSlider.button_text || 'Start Shopping'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => onNavigate('membership')}
-                className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
-              >
-                Explore VIP Savings
-              </button>
+           
             </div>
           </div>
 
@@ -179,11 +179,11 @@ export default function HomePage({ onNavigate }) {
         <section className="relative rounded-3xl overflow-hidden shadow-xl bg-linear-to-br from-emerald-900 via-slate-900 to-slate-950 mx-4 sm:mx-6 lg:mx-8 mt-4 p-8 sm:p-14 text-white space-y-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold uppercase tracking-wider backdrop-blur-xs">
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Fresh Supermarket Direct</span>
+            <span>Swastik Supermarket</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight max-w-2xl">
-            {storeSettings?.store_name || 'FreshMart Supermarket'}
+            {storeSettings?.store_name || 'Swastik Supermarket'}
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-lg">
@@ -199,13 +199,7 @@ export default function HomePage({ onNavigate }) {
               <span>Start Shopping</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('membership')}
-              className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-xl border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
-            >
-              Explore VIP Savings
-            </button>
+           
           </div>
         </section>
       )}
@@ -238,7 +232,7 @@ export default function HomePage({ onNavigate }) {
             >
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-emerald-50/50 group-hover:scale-105 transition-transform">
                 <img
-                  src={cat.image || 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&q=80'}
+                  src={getGeneralImageUrl(cat.image) || 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&q=80'}
                   alt={cat.name}
                   className="w-full h-full object-cover"
                 />
@@ -261,7 +255,6 @@ export default function HomePage({ onNavigate }) {
                 Top Picks &amp; Fresh Essentials
               </h2>
             </div>
-            <p className="text-xs text-slate-500">Popular items ordered right now in Jabalpur</p>
           </div>
           <button
             type="button"
@@ -288,20 +281,30 @@ export default function HomePage({ onNavigate }) {
             ))}
           </div>
         )}
+
+             <button
+              type="button"
+              onClick={() => onNavigate('shop')}
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
       </section>
+   
 
       {/* Membership VIP Promo Card */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl text-center md:text-left">
             <span className="bg-black/20 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full">
-              FreshMart VIP Club
+              Swastik VIP Club
             </span>
             <h3 className="text-2xl sm:text-3xl font-black">
-              Unlock Unlimited Free Delivery &amp; Up to 10% Extra Discount
+              Unlock Prime Membership Benifits
             </h3>
             <p className="text-xs sm:text-sm text-amber-100">
-              Join Silver Saver or Gold VIP plans. Stack discounts on top of coupons and promotional welcome bonus!
+              Join Swastik VIP plans. Stack discounts on top of coupons and promotional welcome bonus!
             </p>
           </div>
           <button
@@ -309,7 +312,7 @@ export default function HomePage({ onNavigate }) {
             onClick={() => onNavigate('membership')}
             className="px-6 py-3.5 bg-slate-950 hover:bg-slate-900 text-amber-300 font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition-transform active:scale-95 cursor-pointer shrink-0"
           >
-            View VIP Plans from ₹99
+            View VIP Plans
           </button>
         </div>
       </section>
@@ -392,12 +395,38 @@ export default function HomePage({ onNavigate }) {
               <p className="text-slate-600 text-[11px]">
                 {storeSettings?.store_business_hours || 'Mon - Sun: 08:00 AM - 10:00 PM'}
               </p>
-              <span className="text-[10px] text-emerald-700 font-semibold block">30-Min Fast Delivery</span>
+              <span className="text-[10px] text-emerald-700 font-semibold block">Fast Delivery</span>
             </div>
           </div>
         </div>
       </section>
-
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+        <ReviewSection
+          isLoggedIn={Boolean(user)}
+          title="Customer Reviews"
+          showstyle="slide"
+          showLimit={10}
+        />
+     
+    </section>
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="h-80 sm:h-96 rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                    <iframe
+                      title="Store Location"
+                      src={
+                        storeSettings?.store_google_map_embed || 
+                        'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3423.962157058092!2d75.07446247507706!3d24.097650378435013!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39642d199e0b38f9%3A0x90dd756fddd6b4aa!2sSwastik%20Supermarket!5e1!3m2!1sen!2sin!4v1791478044812!5m2!1sen!2sin'
+                      }
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+            </div>
+    </section>
     </div>
   );
 }

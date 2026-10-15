@@ -1,27 +1,36 @@
+
 import React, { useEffect, useState } from 'react';
-import { Tag, Plus, Trash2, CheckCircle, Percent, Gift } from 'lucide-react';
+import {
+  Tag,
+  Plus,
+  CheckCircle,
+  Pencil,
+  X,
+  Save,
+  LoaderCircle,
+} from 'lucide-react';
 import client from '../../api/client.js';
-import DeleteConfirmModal from '../../components/common/DeleteConfirmModal.jsx';
+
+const initialForm = {
+  code: '',
+  description: '',
+  discount_type: 'PERCENTAGE',
+  discount_value: '10',
+  max_discount: '100',
+  min_order_amount: '499',
+  per_user_limit: '1',
+  first_order_only: false,
+  status: 'ACTIVE',
+};
 
 export default function AdminCoupons() {
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // New Coupon Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [code, setCode] = useState('');
-  const [desc, setDesc] = useState('');
-  const [type, setType] = useState('PERCENTAGE');
-  const [val, setVal] = useState('10');
-  const [maxDisc, setMaxDisc] = useState('100');
-  const [minOrder, setMinOrder] = useState('499');
-  const [perUser, setPerUser] = useState('1');
-  const [firstOrderOnly, setFirstOrderOnly] = useState(false);
-
-  // Delete Confirm Modal
-  const [deleteModalCoupon, setDeleteModalCoupon] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [editingCoupon, setEditingCoupon] = useState(null);
+  const [form, setForm] = useState({ ...initialForm });
 
   useEffect(() => {
     loadCoupons();
@@ -29,9 +38,13 @@ export default function AdminCoupons() {
 
   async function loadCoupons() {
     setLoading(true);
+
     try {
       const res = await client.get('/coupons');
-      if (res.success) setCoupons(res.data || []);
+
+      if (res.success) {
+        setCoupons(res.data || []);
+      }
     } catch (err) {
       console.warn('Failed to load coupons:', err.message);
     } finally {
@@ -39,65 +52,162 @@ export default function AdminCoupons() {
     }
   }
 
-  async function handleCreateCoupon(e) {
-    e.preventDefault();
-    try {
-      await client.post('/coupons', {
-        code: code.trim().toUpperCase(),
-        description: desc,
-        discount_type: type,
-        discount_value: Number(val),
-        max_discount: maxDisc ? Number(maxDisc) : null,
-        min_order_amount: Number(minOrder),
-        per_user_limit: Number(perUser),
-        first_order_only: firstOrderOnly ? 1 : 0,
-      });
-      setIsModalOpen(false);
-      setCode('');
-      setDesc('');
-      loadCoupons();
-    } catch (err) {
-      alert(err.message);
-    }
+  function updateField(field, value) {
+    setForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
   }
 
-  async function handleDeleteConfirm(password) {
-    if (!deleteModalCoupon) return;
-    setDeleteLoading(true);
-    setDeleteError('');
+  function openCreateModal() {
+    setEditingCoupon(null);
+    setForm({ ...initialForm });
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(coupon) {
+    setEditingCoupon(coupon);
+
+    setForm({
+      code: coupon.code || '',
+      description: coupon.description || '',
+      discount_type: coupon.discount_type || 'PERCENTAGE',
+      discount_value: String(coupon.discount_value ?? '10'),
+      max_discount:
+        coupon.max_discount == null ? '' : String(coupon.max_discount),
+      min_order_amount: String(coupon.min_order_amount ?? '0'),
+      per_user_limit: String(coupon.per_user_limit ?? '1'),
+      first_order_only:
+        coupon.first_order_only === true ||
+        coupon.first_order_only === 1 ||
+        coupon.first_order_only === '1',
+      status: String(coupon.status || 'ACTIVE').toUpperCase(),
+    });
+
+    setIsModalOpen(true);
+  }
+
+  function closeModal() {
+    if (saving) return;
+
+    setIsModalOpen(false);
+    setEditingCoupon(null);
+    setForm({ ...initialForm });
+  }
+
+  async function handleSubmitCoupon(e) {
+    e.preventDefault();
+
+    const code = form.code.trim().toUpperCase();
+    const discountValue = Number(form.discount_value);
+    const minOrder = Number(form.min_order_amount);
+    const perUserLimit = Number(form.per_user_limit);
+    const maxDiscount =
+      form.max_discount.trim() === ''
+        ? null
+        : Number(form.max_discount);
+
+    if (!code) {
+      alert('Please enter a coupon code.');
+      return;
+    }
+
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      alert('Discount value must be greater than zero.');
+      return;
+    }
+
+    if (
+      form.discount_type === 'PERCENTAGE' &&
+      discountValue > 100
+    ) {
+      alert('Percentage discount cannot exceed 100%.');
+      return;
+    }
+
+    if (
+      maxDiscount !== null &&
+      (!Number.isFinite(maxDiscount) || maxDiscount < 0)
+    ) {
+      alert('Please enter a valid maximum discount.');
+      return;
+    }
+
+    if (!Number.isFinite(minOrder) || minOrder < 0) {
+      alert('Minimum order amount cannot be negative.');
+      return;
+    }
+
+    if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
+      alert('Per-user limit must be at least 1.');
+      return;
+    }
+
+    if (!['ACTIVE', 'INACTIVE'].includes(form.status)) {
+      alert('Please select a valid coupon status.');
+      return;
+    }
+
+    const payload = {
+      code,
+      description: form.description.trim(),
+      discount_type: form.discount_type,
+      discount_value: discountValue,
+      max_discount:
+        form.discount_type === 'PERCENTAGE' ? maxDiscount : null,
+      min_order_amount: minOrder,
+      per_user_limit: perUserLimit,
+      first_order_only: form.first_order_only ? 1 : 0,
+      status: form.status,
+    };
+
+    setSaving(true);
 
     try {
-      const res = await client.delete(`/coupons/${deleteModalCoupon.id}`, {
-        headers: {
-          'x-confirm-password': password,
-        },
-      });
+      const res = editingCoupon
+        ? await client.put(`/coupons/${editingCoupon.id}`, payload)
+        : await client.post('/coupons', payload);
 
-      if (res.success) {
-        setDeleteModalCoupon(null);
-        loadCoupons();
-      } else {
-        throw new Error(res.message || 'Deletion failed');
+      if (res?.success === false) {
+        throw new Error(
+          res.message ||
+            `Failed to ${editingCoupon ? 'update' : 'create'} coupon.`
+        );
       }
+
+      alert(
+        res?.message ||
+          `Coupon ${editingCoupon ? 'updated' : 'created'} successfully.`
+      );
+
+      setIsModalOpen(false);
+      setEditingCoupon(null);
+      setForm({ ...initialForm });
+
+      await loadCoupons();
     } catch (err) {
-      setDeleteError(err.message || 'Failed to delete coupon. Verify password.');
+      alert(`Failed to save coupon: ${err.message}`);
     } finally {
-      setDeleteLoading(false);
+      setSaving(false);
     }
   }
 
   return (
     <div className="space-y-6">
-      
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Promotional Coupons</h1>
-          <p className="text-xs text-slate-500">Fixed or percentage discounts with single pricing validation</p>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+            Promotional Coupons
+          </h1>
+          <p className="text-xs text-slate-500">
+            Manage fixed or percentage discounts, usage limits, and status.
+          </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -105,7 +215,8 @@ export default function AdminCoupons() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+      {/* Coupons Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto text-xs">
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[11px]">
@@ -119,115 +230,189 @@ export default function AdminCoupons() {
                 <th className="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">Loading coupons...</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                    Loading coupons...
+                  </td>
                 </tr>
               ) : coupons.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">No promotional coupons configured.</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                    No promotional coupons configured.
+                  </td>
                 </tr>
               ) : (
-                coupons.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3.5 font-mono font-black text-emerald-800 text-xs">
-                      {c.code}
-                    </td>
+                coupons.map((coupon) => {
+                  const isActive =
+                    String(coupon.status || '').toUpperCase() === 'ACTIVE';
 
-                    <td className="p-3.5 font-bold text-slate-900">
-                      {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}% (Max ₹${c.max_discount || 'None'})` : `Flat ₹${c.discount_value}`}
-                    </td>
+                  return (
+                    <tr
+                      key={coupon.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="p-3.5 font-mono font-black text-emerald-800">
+                        {coupon.code}
+                      </td>
 
-                    <td className="p-3.5 font-semibold text-slate-700">
-                      ₹{c.min_order_amount}
-                    </td>
+                      <td className="p-3.5 font-bold text-slate-900">
+                        {coupon.discount_type === 'PERCENTAGE'
+                          ? `${coupon.discount_value}% (Max ₹${coupon.max_discount ?? 'None'})`
+                          : `Flat ₹${coupon.discount_value}`}
+                      </td>
 
-                    <td className="p-3.5 font-semibold text-slate-700">
-                      {c.per_user_limit} use(s)
-                    </td>
+                      <td className="p-3.5 font-semibold text-slate-700">
+                        ₹{coupon.min_order_amount}
+                      </td>
 
-                    <td className="p-3.5 text-slate-500 text-[11px]">
-                      {c.first_order_only ? '1st Order Only' : 'All Customers'}
-                    </td>
+                      <td className="p-3.5 font-semibold text-slate-700">
+                        {coupon.per_user_limit} use(s)
+                      </td>
 
-                    <td className="p-3.5">
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </td>
+                      <td className="p-3.5 text-slate-500 text-[11px]">
+                        {coupon.first_order_only
+                          ? '1st Order Only'
+                          : 'All Customers'}
+                      </td>
 
-                    <td className="p-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDeleteModalCoupon(c);
-                          setDeleteError('');
-                        }}
-                        className="p-1.5 hover:text-rose-600 text-slate-400 transition-colors cursor-pointer"
-                        title="Delete Coupon (Password Protected)"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      <td className="p-3.5">
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+                            isActive
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {coupon.status || 'UNKNOWN'}
+                        </span>
+                      </td>
+
+                      {/* Edit only — delete action removed */}
+                      <td className="p-3.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(coupon)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 font-bold text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+                          title="Edit coupon"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="text-base font-black text-slate-900">New Coupon Code</h3>
-            <form onSubmit={handleCreateCoupon} className="space-y-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Coupon Code</label>
+                <h3 className="text-base font-black text-slate-900">
+                  {editingCoupon ? 'Edit Coupon' : 'New Coupon Code'}
+                </h3>
+                <p className="text-slate-500 mt-1">
+                  Configure coupon rules and availability.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={saving}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 disabled:opacity-50"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitCoupon} className="space-y-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Coupon Code
+                </label>
                 <input
                   type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  value={form.code}
+                  onChange={(e) =>
+                    updateField('code', e.target.value.toUpperCase())
+                  }
                   placeholder="e.g. MEGA50"
                   required
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase font-black"
                 />
+
+                {editingCoupon && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Changing a coupon code may affect customers who already know it.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Discount Type</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Discount Type
+                  </label>
                   <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
+                    value={form.discount_type}
+                    onChange={(e) =>
+                      updateField('discount_type', e.target.value)
+                    }
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold"
                   >
                     <option value="PERCENTAGE">Percentage (%)</option>
                     <option value="FIXED">Fixed Amount (₹)</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Value</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Value
+                  </label>
                   <input
                     type="number"
-                    value={val}
-                    onChange={(e) => setVal(e.target.value)}
+                    min="0.01"
+                    max={form.discount_type === 'PERCENTAGE' ? 100 : undefined}
+                    step="0.01"
+                    value={form.discount_value}
+                    onChange={(e) =>
+                      updateField('discount_value', e.target.value)
+                    }
                     required
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                   />
                 </div>
               </div>
 
-              {type === 'PERCENTAGE' && (
+              {form.discount_type === 'PERCENTAGE' && (
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Max Discount Cap (₹)</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Max Discount Cap (₹)
+                  </label>
                   <input
                     type="number"
-                    value={maxDisc}
-                    onChange={(e) => setMaxDisc(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    value={form.max_discount}
+                    onChange={(e) =>
+                      updateField('max_discount', e.target.value)
+                    }
                     placeholder="Leave blank for no limit"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
@@ -236,80 +421,115 @@ export default function AdminCoupons() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Min Basket (₹)</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Min Basket (₹)
+                  </label>
                   <input
                     type="number"
-                    value={minOrder}
-                    onChange={(e) => setMinOrder(e.target.value)}
+                    min="0"
+                    step="0.01"
+                    value={form.min_order_amount}
+                    onChange={(e) =>
+                      updateField('min_order_amount', e.target.value)
+                    }
+                    required
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
+
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Per User Limit</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Per User Limit
+                  </label>
                   <input
                     type="number"
-                    value={perUser}
-                    onChange={(e) => setPerUser(e.target.value)}
+                    min="1"
+                    step="1"
+                    value={form.per_user_limit}
+                    onChange={(e) =>
+                      updateField('per_user_limit', e.target.value)
+                    }
+                    required
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Description</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Description
+                </label>
                 <input
                   type="text"
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  placeholder="e.g. 10% off for all grocery orders above ₹499"
+                  value={form.description}
+                  onChange={(e) =>
+                    updateField('description', e.target.value)
+                  }
+                  placeholder="e.g. 10% off grocery orders above ₹499"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>
 
-              <div className="pt-1">
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={firstOrderOnly}
-                    onChange={(e) => setFirstOrderOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-600"
-                  />
-                  <span>First-time order customers only</span>
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 pt-1">
+                <input
+                  type="checkbox"
+                  checked={form.first_order_only}
+                  onChange={(e) =>
+                    updateField('first_order_only', e.target.checked)
+                  }
+                  className="w-4 h-4 rounded accent-emerald-600"
+                />
+                <span>First-time order customers only</span>
+              </label>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Coupon Status
                 </label>
+                <select
+                  value={form.status}
+                  onChange={(e) => updateField('status', e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                >
+                  <option value="ACTIVE">Active — available for use</option>
+                  <option value="INACTIVE">Inactive — unavailable for use</option>
+                </select>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border rounded-xl cursor-pointer"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Create Coupon
+                  {saving ? (
+                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                  ) : editingCoupon ? (
+                    <Save className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4" />
+                  )}
+
+                  {saving
+                    ? 'Saving...'
+                    : editingCoupon
+                      ? 'Update Coupon'
+                      : 'Create Coupon'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Sensitive Delete Modal */}
-      <DeleteConfirmModal
-        isOpen={Boolean(deleteModalCoupon)}
-        title="Confirm Coupon Deactivation"
-        itemName={deleteModalCoupon ? `Coupon Code: ${deleteModalCoupon.code}` : ''}
-        message="This will deactivate this coupon code across the store and in-house POS."
-        loading={deleteLoading}
-        error={deleteError}
-        onConfirm={handleDeleteConfirm}
-        onClose={() => setDeleteModalCoupon(null)}
-      />
-
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import db from '../../database/connection.js';
-
+import { toMySQLDateTime } from '../../src/utils/dateTime.js';
 class PricingService {
   /**
    * Single Centralized Pricing Engine for both Online and In-House POS orders
@@ -76,7 +76,8 @@ class PricingService {
         discount: (originalPrice - appliedPrice) * qty,
         tax_percent: taxRate,
         tax: Math.round(lineTax * 100) / 100,
-        total: Math.round((lineSubtotal + lineTax) * 100) / 100,
+        //total: Math.round((lineSubtotal + lineTax) * 100) / 100,
+        total: Math.round(lineSubtotal * 100) / 100,
       });
     }
 
@@ -89,7 +90,7 @@ class PricingService {
     let activeMembership = null;
 
     if (userId) {
-      const nowIso = new Date().toISOString();
+      const nowIso = toMySQLDateTime();
       activeMembership = await db.get(
         `SELECT cm.id, cm.plan_id, cm.end_date, mp.name as plan_name, mp.discount_percent, mp.free_delivery
          FROM customer_memberships cm
@@ -198,7 +199,7 @@ class PricingService {
 
     if (userId) {
       // Calculate available unexpired promotional credit
-      const nowIso = new Date().toISOString();
+      const nowIso = toMySQLDateTime();
       const credits = await db.get(
         `SELECT SUM(amount) as total FROM customer_bonus_transactions 
          WHERE user_id = ? AND type IN ('WELCOME_BONUS', 'ADMIN_CREDIT', 'REVERSAL') 
@@ -218,7 +219,7 @@ class PricingService {
       if (useBonus && availableBonus > 0) {
         // Load store settings for bonus rules
         const bonusSettingsRows = await db.query(
-          "SELECT key, value FROM store_settings WHERE key LIKE 'welcome_bonus_%'"
+          "SELECT setting_key as key, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'"
         );
         const settings = {};
         for (const row of bonusSettingsRows) settings[row.key] = row.value;
@@ -300,8 +301,15 @@ class PricingService {
 
     // 6. Grand Total
     const discountsTotal = membershipDiscount + couponDiscount + bonusDiscount;
-    const grandTotal = Math.max(0, Math.round((subtotal - discountsTotal + deliveryCharge + totalTax) * 100) / 100);
+    //const grandTotal = Math.max(0, Math.round((subtotal - discountsTotal + deliveryCharge + totalTax) * 100) / 100);
 
+
+    const grandTotal = Math.max(
+      0,
+      Math.round(
+        (subtotal - discountsTotal + deliveryCharge) * 100
+      ) / 100
+    );
     return {
       subtotal,
       tax: totalTax,

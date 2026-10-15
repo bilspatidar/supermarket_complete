@@ -3,9 +3,13 @@ import { ArrowLeft, ShoppingCart, Plus, Minus, ShieldCheck, Truck, Clock, AlertC
 import client from '../../api/client.js';
 import { useCart } from '../../context/CartContext.jsx';
 import { getProductImageUrl } from '../../utils/image.js';
+import ReviewSection from '../../components/reviews/ReviewSection.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+
 
 
 export default function ProductDetailPage({ productId, onNavigate }) {
+  const { user, isStaff, isAdmin, logout } = useAuth();
   const { items, addToCart, updateQuantity } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -200,6 +204,17 @@ export default function ProductDetailPage({ productId, onNavigate }) {
 
         </div>
       </div>
+       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+         
+              <ReviewSection
+                isLoggedIn={Boolean(user)}
+                productId={product.id}
+                title="Customer Reviews"
+                showstyle="all"
+                showLimit={0}
+              />
+           
+        </section>
     </div>
   );
 }

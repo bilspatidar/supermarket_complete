@@ -673,7 +673,7 @@ export default function AdminStaff() {
                   type="email"
                   value={staffEmail}
                   onChange={(e) => setStaffEmail(e.target.value)}
-                  placeholder="staff@freshmart.local"
+                  placeholder="staff@swastiksupermarket.com"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                 />
               </div>

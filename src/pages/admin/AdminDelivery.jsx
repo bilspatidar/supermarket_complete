@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Plus, Clock, Truck, ShieldCheck } from 'lucide-react';
+import {
+  MapPin,
+  Plus,
+  Clock,
+  Truck,
+  ShieldCheck,
+  Pencil,
+  Trash2,
+  X,
+} from 'lucide-react';
 import client from '../../api/client.js';
 
 export default function AdminDelivery() {
@@ -21,6 +30,14 @@ export default function AdminDelivery() {
   const [subName, setSubName] = useState('');
   const [subFee, setSubFee] = useState('');
   const [subFreeMin, setSubFreeMin] = useState('');
+
+
+
+  // Edit Area
+const [editingArea, setEditingArea] = useState(null);
+
+// Edit Sub-Area
+const [editingSubArea, setEditingSubArea] = useState(null);
 
   useEffect(() => {
     loadZones();
@@ -62,6 +79,37 @@ export default function AdminDelivery() {
     }
   }
 
+  async function handleUpdateArea(e) {
+  e.preventDefault();
+
+  if (!editingArea) return;
+
+  try {
+    await client.put(`/delivery/areas/${editingArea.id}`, {
+      name: areaName,
+      delivery_charge: Number(areaFee),
+      free_delivery_minimum: Number(areaFreeMin),
+      minimum_order: Number(areaMinOrder),
+      start_time: areaStart,
+      end_time: areaEnd,
+    });
+
+    setEditingArea(null);
+    setIsAreaModalOpen(false);
+
+    setAreaName('');
+    setAreaFee('40');
+    setAreaFreeMin('499');
+    setAreaMinOrder('199');
+    setAreaStart('08:00');
+    setAreaEnd('22:00');
+
+    await loadZones();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
   async function handleCreateSubArea(e) {
     e.preventDefault();
     try {
@@ -80,6 +128,104 @@ export default function AdminDelivery() {
       alert(err.message);
     }
   }
+
+
+  async function handleUpdateSubArea(e) {
+  e.preventDefault();
+
+  if (!editingSubArea) return;
+
+  try {
+    await client.put(`/delivery/sub-areas/${editingSubArea.id}`, {
+      area_id: Number(targetAreaId),
+      name: subName,
+      delivery_charge: subFee ? Number(subFee) : null,
+      free_delivery_minimum: subFreeMin
+        ? Number(subFreeMin)
+        : null,
+    });
+
+    setEditingSubArea(null);
+    setIsSubModalOpen(false);
+
+    setSubName('');
+    setSubFee('');
+    setSubFreeMin('');
+
+    await loadZones();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function handleDeleteArea(area) {
+  const confirmed = window.confirm(
+    `Delete "${area.name}"?\n\nThis may also delete its sub-areas.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await client.delete(`/delivery/areas/${area.id}`);
+
+    await loadZones();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function handleDeleteSubArea(sub) {
+  const confirmed = window.confirm(
+    `Delete sub-area "${sub.name}"?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await client.delete(`/delivery/sub-areas/${sub.id}`);
+
+    await loadZones();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+function openEditArea(area) {
+  setEditingArea(area);
+
+  setAreaName(area.name || '');
+  setAreaFee(String(area.delivery_charge ?? ''));
+  setAreaFreeMin(String(area.free_delivery_minimum ?? ''));
+  setAreaMinOrder(String(area.minimum_order ?? ''));
+  setAreaStart(area.start_time || '08:00');
+  setAreaEnd(area.end_time || '22:00');
+
+  setIsAreaModalOpen(true);
+}
+
+
+function openEditSubArea(sub, areaId) {
+  setEditingSubArea(sub);
+
+  setTargetAreaId(String(areaId));
+  setSubName(sub.name || '');
+
+  setSubFee(
+    sub.delivery_charge !== null &&
+    sub.delivery_charge !== undefined
+      ? String(sub.delivery_charge)
+      : ''
+  );
+
+  setSubFreeMin(
+    sub.free_delivery_minimum !== null &&
+    sub.free_delivery_minimum !== undefined
+      ? String(sub.free_delivery_minimum)
+      : ''
+  );
+
+  setIsSubModalOpen(true);
+}
+
 
   return (
     <div className="space-y-6">
@@ -128,14 +274,45 @@ export default function AdminDelivery() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-4 text-xs text-slate-600">
-                <span>Default Fee: <strong>₹{area.delivery_charge}</strong></span>
-                <span>Free Above: <strong className="text-emerald-700">₹{area.free_delivery_minimum}</strong></span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{area.start_time} - {area.end_time}</span>
-                </span>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+  <span>
+    Default Fee: <strong>₹{area.delivery_charge}</strong>
+  </span>
+
+  <span>
+    Free Above:
+    <strong className="text-emerald-700">
+      ₹{area.free_delivery_minimum}
+    </strong>
+  </span>
+
+  <span className="flex items-center gap-1">
+    <Clock className="w-3.5 h-3.5 text-slate-400" />
+    <span>
+      {area.start_time} - {area.end_time}
+    </span>
+  </span>
+
+  <div className="flex items-center gap-1 ml-auto">
+    <button
+      type="button"
+      onClick={() => openEditArea(area)}
+      className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+      title="Edit Area"
+    >
+      <Pencil className="w-3.5 h-3.5" />
+    </button>
+
+    <button
+      type="button"
+      onClick={() => handleDeleteArea(area)}
+      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+      title="Delete Area"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  </div>
+</div>
             </div>
 
             {/* Sub-areas list */}
@@ -152,18 +329,31 @@ export default function AdminDelivery() {
                       key={sub.id}
                       className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 space-y-1.5"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 text-sm">{sub.name}</span>
-                        {hasOverride ? (
-                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                            Custom Override
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
-                            Inherits Area
-                          </span>
-                        )}
+                     <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900 text-sm">
+                        {sub.name}
+                      </span>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditSubArea(sub, area.id)}
+                          className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                          title="Edit Sub-Area"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubArea(sub)}
+                          className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          title="Delete Sub-Area"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
+                    </div>
 
                       <div className="text-[11px] text-slate-600 flex justify-between">
                         <span>Charge: <strong>₹{sub.effective_delivery_charge}</strong></span>
@@ -183,8 +373,13 @@ export default function AdminDelivery() {
       {isAreaModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="text-base font-black text-slate-900">Add Delivery Area</h3>
-            <form onSubmit={handleCreateArea} className="space-y-3">
+            <h3 className="text-base font-black text-slate-900">
+              {editingArea ? 'Edit Delivery Area' : 'Add Delivery Area'}
+            </h3>
+            <form
+                onSubmit={editingArea ? handleUpdateArea : handleCreateArea}
+                className="space-y-3"
+              >
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Area / City Name</label>
                 <input
@@ -242,7 +437,10 @@ export default function AdminDelivery() {
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsAreaModalOpen(false)}
+                  onClick={() => {
+                    setIsAreaModalOpen(false);
+                    setEditingArea(null);
+                  }}
                   className="px-4 py-2 border rounded-xl cursor-pointer"
                 >
                   Cancel
@@ -251,7 +449,7 @@ export default function AdminDelivery() {
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer"
                 >
-                  Save Area
+                  {editingArea ? 'Update Area' : 'Save Area'}
                 </button>
               </div>
             </form>
@@ -263,8 +461,19 @@ export default function AdminDelivery() {
       {isSubModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
-            <h3 className="text-base font-black text-slate-900">Add Delivery Sub-Area</h3>
-            <form onSubmit={handleCreateSubArea} className="space-y-3">
+            <h3 className="text-base font-black text-slate-900">
+              {editingSubArea
+                ? 'Edit Delivery Sub-Area'
+                : 'Add Delivery Sub-Area'}
+            </h3>
+           <form
+              onSubmit={
+                editingSubArea
+                  ? handleUpdateSubArea
+                  : handleCreateSubArea
+              }
+              className="space-y-3"
+            >
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Parent Area</label>
                 <select
@@ -312,19 +521,24 @@ export default function AdminDelivery() {
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSubModalOpen(false)}
-                  className="px-4 py-2 border rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer"
-                >
-                  Save Sub-Area
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSubModalOpen(false);
+                  setEditingSubArea(null);
+                }}
+                className="px-4 py-2 border rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+                            <button
+                type="submit"
+                className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer"
+              >
+                {editingSubArea
+                  ? 'Update Sub-Area'
+                  : 'Save Sub-Area'}
+              </button>
               </div>
             </form>
           </div>

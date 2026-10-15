@@ -60,7 +60,7 @@ export default function MembershipPage({ onNavigate }) {
       <div className="text-center space-y-3 max-w-2xl mx-auto">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black uppercase tracking-wider">
           <Award className="w-4 h-4 text-amber-600" />
-          <span>FreshMart VIP Club</span>
+          <span>Swastik Supermarket VIP Club</span>
         </span>
         <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
           Shop Smarter with VIP Membership

@@ -2,6 +2,9 @@ import React from 'react';
 import { X, Trash2, Plus, Minus, ArrowRight, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { useCart } from '../../context/CartContext.jsx';
 import { useDelivery } from '../../context/DeliveryContext.jsx';
+import { getProductImageUrl } from '../../utils/image.js';
+
+
 
 export default function CartDrawer({ onNavigate }) {
   const { items, subtotal, count, isDrawerOpen, setIsDrawerOpen, updateQuantity } = useCart();
@@ -94,7 +97,7 @@ export default function CartDrawer({ onNavigate }) {
                   className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
                 >
                   <img
-                    src={item.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=80'}
+                    src={getProductImageUrl(item) || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&q=80'}
                     alt={item.name}
                     className="w-14 h-14 object-cover rounded-lg bg-white shrink-0"
                   />

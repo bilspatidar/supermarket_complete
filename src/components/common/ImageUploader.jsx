@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Upload, X, Eye, CheckCircle, AlertCircle, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import client from '../../api/client.js';
 import ImagePreview from './ImagePreview.jsx';
 import ImageViewer from './ImageViewer.jsx';
+import { getGeneralImageUrl } from '../../utils/image.js';
 
 /**
  * Single Central Image Uploader Component
@@ -12,93 +14,51 @@ export default function ImageUploader({
   label = 'Upload Image',
   value = '',
   onChange,
-  onFileSelect,
   productCode = '',
   suffix = '', // e.g. '_2' for secondary image
   helpText = 'Supports WebP, JPG, PNG up to 5MB',
   className = '',
   presetName = '',
 }) {
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [directUrl, setDirectUrl] = useState('');
   const fileInputRef = useRef(null);
-  const [localPreview, setLocalPreview] = useState('');
+
   // Compute targeted filename if product code is provided (e.g. SP000123.webp)
   const targetCustomFilename = productCode ? `${productCode}${suffix}` : (presetName || null);
 
-  useEffect(() => {
-  return () => {
-    if (localPreview) {
-      URL.revokeObjectURL(localPreview);
-    }
-  };
-}, [localPreview]);
-
-  function handleFileSelectDELETE(e) {
+  async function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-  
+
     setError('');
-  
-    // Keep file in parent state
-    if (onFileSelect) {
-      onFileSelect(file);
-    }
-  
-    // Local preview only - NO upload
-    const previewUrl = URL.createObjectURL(file);
-    setLocalPreview(previewUrl);
-  }
+    setUploading(true);
 
-    function handleFileSelect(e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      setError('');
-
-      // Remove previous local preview URL
-      if (localPreview) {
-        URL.revokeObjectURL(localPreview);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      if (targetCustomFilename) {
+        formData.append('customFilename', targetCustomFilename);
       }
 
-      // Keep selected file in parent
-      if (onFileSelect) {
-        onFileSelect(file);
+      const res = await client.upload('/upload', formData);
+      if (res.success && res.url) {
+        onChange(res.url);
+      } else {
+        throw new Error(res.message || 'Upload failed');
       }
-
-      // Local preview only
-      const previewUrl = URL.createObjectURL(file);
-      setLocalPreview(previewUrl);
+    } catch (err) {
+      setError(err.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
-
-
-    function handleRemove() {
-  // Clear parent image value
-  if (onChange) {
-    onChange('');
   }
-
-  // Clear selected file in parent
-  if (onFileSelect) {
-    onFileSelect(null);
-  }
-
-  // Clear local preview
-  if (localPreview) {
-    URL.revokeObjectURL(localPreview);
-  }
-
-  setLocalPreview('');
-  setError('');
-
-  // Reset file input so the same file can be selected again
-  if (fileInputRef.current) {
-    fileInputRef.current.value = '';
-  }
-}
-
 
   function handleDirectUrlSubmit(e) {
     e.preventDefault();
@@ -108,14 +68,6 @@ export default function ImageUploader({
       setShowUrlInput(false);
     }
   }
-
-  const fullImageUrl =
-  localPreview ||
-  (value
-    ? value.startsWith('http')
-      ? value
-      : `${import.meta.env.VITE_PRODUCT_IMAGE_URL.replace(/\/$/, '')}/${value.replace(/^\//, '')}`
-    : '');
 
   return (
     <div className={`space-y-2 text-xs ${className}`}>
@@ -152,12 +104,12 @@ export default function ImageUploader({
 
       {/* Main Upload / Preview Box */}
       <div className="border-2 border-dashed border-slate-200 hover:border-emerald-400 transition-colors rounded-2xl p-3 bg-slate-50/50">
-        {value || localPreview ? (
+        {value ? (
           <div className="flex items-center gap-3">
             {/* Thumbnail Preview */}
             <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden border border-slate-200 bg-white">
               <ImagePreview
-                src={fullImageUrl}
+                src={value}
                 alt={label}
                 className="w-full h-full object-cover"
                 fallbackText="Preview"
@@ -186,15 +138,15 @@ export default function ImageUploader({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
                   className="px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
                 >
-                  <RefreshCw className="w-3 h-3" />
+                  <RefreshCw className={`w-3 h-3 ${uploading ? 'animate-spin' : ''}`} />
                   <span>Replace</span>
                 </button>
                 <button
                   type="button"
-                  onClick={handleRemove}
-
+                  onClick={() => onChange('')}
                   className="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer"
                 >
                   <X className="w-3 h-3" />
@@ -212,7 +164,7 @@ export default function ImageUploader({
               <Upload className="w-5 h-5" />
             </div>
             <div className="text-xs font-bold text-slate-800">
-              {localPreview ? 'Change Image' : 'Select Image'}
+              {uploading ? 'Uploading image...' : 'Click or Drag to Upload'}
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5">
               {targetCustomFilename ? `Target file: ${targetCustomFilename}.webp` : helpText}
@@ -239,7 +191,7 @@ export default function ImageUploader({
 
       {/* Lightbox Viewer */}
       <ImageViewer
-        src={fullImageUrl}
+        src={getGeneralImageUrl(value)}
         title={label}
         isOpen={viewerOpen}
         onClose={() => setViewerOpen(false)}

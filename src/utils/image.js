@@ -14,3 +14,15 @@ export function getProductImageUrl(product) {
   
     return `${baseUrl.replace(/\/$/, '')}/${filename.replace(/^\//, '')}`;
   }
+
+
+
+ export function getGeneralImageUrl(image) {
+  if (!image) {
+    return '/images/swastik_thumb.webp';
+  }
+
+  const baseUrl = import.meta.env.VITE_PRODUCT_IMAGE_URL || '';
+
+  return `${baseUrl.replace(/\/$/, '')}/${image.replace(/^\//, '')}`;
+}

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import db from '../../database/connection.js';
 import authService from '../services/authService.js';
+import { toMySQLDateTime } from '../../src/utils/dateTime.js';
 
 /**
  * -------------------------------------------------------------
@@ -162,7 +163,7 @@ export async function getCustomerDetail(req, res) {
     );
 
     // 3. Active Membership
-    const nowIso = new Date().toISOString();
+    const nowIso = toMySQLDateTime();
     const membership = await db.get(
       `SELECT cm.*, mp.name as plan_name, mp.discount_percent, mp.free_delivery, mp.duration_days
        FROM customer_memberships cm

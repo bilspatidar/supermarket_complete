@@ -29,6 +29,8 @@ import AdminOrders from './pages/admin/AdminOrders.jsx';
 import AdminProducts from './pages/admin/AdminProducts.jsx';
 import AdminInventory from './pages/admin/AdminInventory.jsx';
 import AdminCustomers from './pages/admin/AdminCustomers.jsx';
+import AdminContacts from './pages/admin/AdminContacts.jsx';
+import AdminReviews from './pages/admin/AdminReviews.jsx';
 import AdminDelivery from './pages/admin/AdminDelivery.jsx';
 import AdminMembership from './pages/admin/AdminMembership.jsx';
 import AdminCoupons from './pages/admin/AdminCoupons.jsx';
@@ -38,11 +40,14 @@ import AdminSettings from './pages/admin/AdminSettings.jsx';
 import AdminAudit from './pages/admin/AdminAudit.jsx';
 import AdminHomeSlider from './pages/admin/AdminHomeSlider.jsx';
 import AdminPages from './pages/admin/AdminPages.jsx';
+import client from './api/client.js';
 
 
 function routeFromLocation() {
   const { pathname, search } = window.location;
   const params = new URLSearchParams(search);
+
+  
 
   // Admin
   if (pathname === '/admin' || pathname === '/admin/dashboard') {
@@ -61,6 +66,7 @@ function routeFromLocation() {
       products: 'admin-products',
       inventory: 'admin-inventory',
       customers: 'admin-customers',
+      contacts: 'admin-contacts',
       delivery: 'admin-delivery',
       membership: 'admin-membership',
       coupons: 'admin-coupons',
@@ -277,6 +283,12 @@ function locationFromRoute(route, params = {}) {
     case 'admin-customers':
       return '/admin/customers';
 
+    case 'admin-contacts':
+      return '/admin/contacts';  
+    
+    case 'admin-reviews':
+      return '/admin/reviews';  
+
     case 'admin-delivery':
       return '/admin/delivery';
 
@@ -317,6 +329,24 @@ function MainRouter() {
   const [route, setRoute] = useState(initialLocation.route);
   const [routeParams, setRouteParams] = useState(initialLocation.params);
 
+    
+  const [storeSettings, setStoreSettings] = useState(null);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  async function loadSettings() {
+    try {
+      const res = await client.get('/settings');
+
+      if (res.success) {
+        setStoreSettings(res.data || null);
+      }
+    } catch (err) {
+      console.warn('Failed to load settings:', err.message);
+    }
+  }
   function navigate(newRoute, params = {}, replace = false) {
     setRoute(newRoute);
     setRouteParams(params);
@@ -371,7 +401,7 @@ function MainRouter() {
     if (!loading && (!user || user.account_type !== 'INTERNAL')) {
       return (
         <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
-          <Header onNavigate={navigate} currentRoute={route} />
+          <Header onNavigate={navigate} currentRoute={route} storeSettings={storeSettings}/>
           <main className="flex-1 flex items-center justify-center p-6">
             <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-xl border border-slate-200 text-center space-y-4 animate-fade-in">
               <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
@@ -386,11 +416,11 @@ function MainRouter() {
                 onClick={() => navigate('login')}
                 className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
               >
-                Sign In to Staff Account &rarr;
+                Sign In to Account &rarr;
               </button>
             </div>
           </main>
-          <Footer onNavigate={navigate} />
+          <Footer onNavigate={navigate} storeSettings={storeSettings} />
         </div>
       );
     }
@@ -403,6 +433,8 @@ function MainRouter() {
         {route === 'admin-products' && <AdminProducts onNavigate={navigate} />}
         {route === 'admin-inventory' && <AdminInventory onNavigate={navigate} />}
         {route === 'admin-customers' && <AdminCustomers onNavigate={navigate} />}
+        {route === 'admin-reviews' && <AdminReviews onNavigate={navigate} />}
+        {route === 'admin-contacts' && <AdminContacts onNavigate={navigate} />}
         {route === 'admin-delivery' && <AdminDelivery onNavigate={navigate} />}
         {route === 'admin-membership' && <AdminMembership onNavigate={navigate} />}
         {route === 'admin-coupons' && <AdminCoupons onNavigate={navigate} />}
@@ -421,7 +453,7 @@ function MainRouter() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans pb-16 md:pb-0">
-      <Header onNavigate={navigate} currentRoute={route} />
+      <Header onNavigate={navigate} currentRoute={route}  storeSettings={storeSettings} />
 
       <main className="flex-1">
         {/* Public Routes */}
@@ -499,7 +531,7 @@ function MainRouter() {
         )}
       </main>
 
-      <Footer onNavigate={navigate} />
+      <Footer onNavigate={navigate} storeSettings={storeSettings} />
 
       {/* Mobile Fixed Bottom Navigation */}
       <MobileBottomNav onNavigate={navigate} currentRoute={route} />

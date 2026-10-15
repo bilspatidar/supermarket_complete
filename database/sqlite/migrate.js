@@ -80,7 +80,7 @@ export async function runMigrations() {
     }
 
     // 5. Store Settings: order_notification_recipients
-    const existingRecipients = await query("SELECT key FROM store_settings WHERE key = 'order_notification_recipients'");
+    const existingRecipients = await query("SELECT setting_key FROM store_settings WHERE setting_key = 'order_notification_recipients'");
     if (existingRecipients.length === 0) {
       await run(
         `INSERT OR IGNORE INTO store_settings (key, value, type, group_name)
