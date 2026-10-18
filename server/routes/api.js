@@ -43,6 +43,7 @@ router.post('/auth/register', authController.register);
 router.get('/auth/me', authenticate, authController.getMe);
 router.put('/auth/profile', authenticate, requireCustomer, authController.updateProfile);
 router.put('/auth/change-password', authenticate, requireCustomer, authController.updatePassword);
+router.put('/auth/change-admin-password', authenticate,requireInternal, authController.updatePassword);
 router.post(
   '/auth/admin/correct-personal-data',
   authenticate,

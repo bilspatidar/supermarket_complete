@@ -82,7 +82,13 @@ export default function CMSPage({ slug = 'contact', onNavigate }) {
           `/cms/pages/${encodeURIComponent(slug)}`
         );
 
-        const result = getApiPayload(response);
+       console.log('[CMS] Raw response:', response);
+
+const result = response;
+
+console.log('[CMS] Parsed result:', result);
+console.log('[CMS] Success:', result?.success);
+console.log('[CMS] Page data:', result?.data);
 
         if (!active) return;
 
@@ -199,7 +205,7 @@ export default function CMSPage({ slug = 'contact', onNavigate }) {
         query: contactForm.query.trim(),
       });
 
-      const result = getApiPayload(response);
+      const result = response?.data ?? response;
 
       if (result?.success === false) {
         throw new Error(

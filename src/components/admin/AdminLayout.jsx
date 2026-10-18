@@ -49,6 +49,7 @@ export default function AdminLayout({ activePage, onNavigate, children }) {
     { id: 'admin-staff', label: 'Staff & Roles', icon: ShieldCheck, perm: 'staff.view' },
     { id: 'admin-settings', label: 'Store Settings', icon: Settings, perm: 'settings.view' },
     { id: 'admin-audit', label: 'Audit & WA Logs', icon: FileText, perm: 'audit.view' },
+    { id: 'admin-password', label: 'Manage Password', icon: FileText, perm: '' },
   ];
 
   return (

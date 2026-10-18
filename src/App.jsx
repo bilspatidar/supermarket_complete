@@ -42,6 +42,7 @@ import AdminMembershipList  from './pages/admin/AdminMembershipList.jsx';
 import AdminAudit from './pages/admin/AdminAudit.jsx';
 import AdminHomeSlider from './pages/admin/AdminHomeSlider.jsx';
 import AdminPages from './pages/admin/AdminPages.jsx';
+import AdminPassword from './pages/admin/AdminPassword.jsx';
 import client from './api/client.js';
 
 
@@ -79,6 +80,7 @@ function routeFromLocation() {
       staff: 'admin-staff',
       settings: 'admin-settings',
       audit: 'admin-audit',
+      password: 'admin-password',
       'membership-list': 'admin-membership-list',
       reviews: 'admin-reviews',
     };
@@ -325,6 +327,9 @@ function locationFromRoute(route, params = {}) {
 
     case 'admin-audit':
       return '/admin/audit';
+    
+    case 'admin-password':
+      return '/admin/password';
 
     default:
       return '/';
@@ -464,6 +469,7 @@ function MainRouter() {
         {route === 'admin-staff' && <AdminStaff onNavigate={navigate} />}
         {route === 'admin-settings' && <AdminSettings onNavigate={navigate} />}
         {route === 'admin-audit' && <AdminAudit onNavigate={navigate} />}
+        {route === 'admin-password' && <AdminPassword onNavigate={navigate} />}
       </AdminLayout>
     );
   }
