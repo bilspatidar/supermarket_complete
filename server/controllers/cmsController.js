@@ -39,6 +39,8 @@ export async function getSliders(req, res) {
     });
   }
 }
+
+
 /**
  * Admin: Get all sliders
  */
