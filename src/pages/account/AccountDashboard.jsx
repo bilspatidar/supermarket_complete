@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import {X,Banknote, Printer, Eye, User, Lock, Gift, Award, MapPin, Package, Clock, ShieldCheck, ChevronRight, Phone, Mail, Calendar, CheckCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+import {X,Banknote, Printer, Eye, User,Key, Lock, Gift, Award, MapPin, Package, Clock, ShieldCheck, ChevronRight, Phone, Mail, Calendar, CheckCircle } from 'lucide-react';
 import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useStoreSettings } from '../../context/StoreSettingsContext';
 
 export default function AccountDashboard({ onNavigate }) {
   const { user, stats, refreshMe, updateProfile } = useAuth();
-  
+  const { storeSettings } = useStoreSettings();
+
   const [activeTab, setActiveTab] = useState('orders'); // 'orders', 'profile', 'bonus', 'membership', 'addresses'
   const [orders, setOrders] = useState([]);
   const [bonusData, setBonusData] = useState({ availableBalance: 0, transactions: [] });
@@ -24,6 +27,21 @@ export default function AccountDashboard({ onNavigate }) {
   const [email, setEmail] = useState(user?.email || '');
   const [profileMsg, setProfileMsg] = useState('');
   const [profileError, setProfileError] = useState('');
+
+  const [dob, setDob] = useState(user?.dob || '');
+  const [anniversaryDate, setAnniversaryDate] = useState(
+    user?.anniversary_date || ''
+  );
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const dobLocked = Boolean(user?.dob);
+  const anniversaryLocked = Boolean(user?.anniversary_date);
 
   if (user?.account_type === 'INTERNAL') {
     return (
@@ -56,6 +74,26 @@ export default function AccountDashboard({ onNavigate }) {
   }
 
   useEffect(() => {
+  setDob(user?.dob ? String(user.dob).slice(0, 10) : '');
+  setAnniversaryDate(
+    user?.anniversary_date
+      ? String(user.anniversary_date).slice(0, 10)
+      : ''
+  );
+}, [user?.dob, user?.anniversary_date]);
+
+useEffect(() => {
+  
+
+  setDob(user?.dob ? String(user.dob).slice(0, 10) : '');
+  setAnniversaryDate(
+    user?.anniversary_date
+      ? String(user.anniversary_date).slice(0, 10)
+      : ''
+  );
+}, [user?.dob, user?.anniversary_date]);
+
+  useEffect(() => {
     loadAccountData();
   }, []);
 
@@ -83,18 +121,71 @@ export default function AccountDashboard({ onNavigate }) {
     }
   }
 
-  async function handleUpdateProfile(e) {
-    e.preventDefault();
-    setProfileMsg('');
-    setProfileError('');
-    try {
-      await updateProfile({ name, email });
-      setProfileMsg('Profile information updated successfully');
-      refreshMe();
-    } catch (err) {
-      setProfileError(err.message);
-    }
+  async function handleChangePassword(e) {
+  e.preventDefault();
+  setPasswordMsg('');
+  setPasswordError('');
+
+  if (newPassword.length < 8) {
+    setPasswordError('Password must be at least 8 characters.');
+    return;
   }
+
+  if (newPassword !== confirmPassword) {
+    setPasswordError('New password and confirmation do not match.');
+    return;
+  }
+
+  setPasswordLoading(true);
+
+  try {
+    // This endpoint must be implemented in your backend.
+    const res = await client.put('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
+
+    if (!res.success) {
+      throw new Error(res.message || 'Password change failed.');
+    }
+
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordMsg('Password changed successfully.');
+  } catch (err) {
+    setPasswordError(err.message || 'Password change failed.');
+  } finally {
+    setPasswordLoading(false);
+  }
+}
+
+async function handleUpdateProfile(e) {
+  e.preventDefault();
+  setProfileMsg('');
+  setProfileError('');
+
+  const payload = {
+    name,
+    email: email || null,
+  };
+
+  if (!dobLocked && dob) {
+    payload.dob = dob;
+  }
+
+  if (!anniversaryLocked && anniversaryDate) {
+    payload.anniversaryDate = anniversaryDate;
+  }
+
+  try {
+    await updateProfile(payload);
+    await refreshMe();
+    setProfileMsg('Profile updated successfully.');
+  } catch (err) {
+    setProfileError(err.message || 'Failed to update profile.');
+  }
+}
 
   function formatDate(dStr) {
     if (!dStr) return 'Not set';
@@ -117,7 +208,10 @@ export default function AccountDashboard({ onNavigate }) {
         );
       }
     } catch (err) {
-      alert(`Failed to load order details: ${err.message}`);
+      toast.error(`Failed to load order details: ${err.message}`, {
+      duration: 2000,
+    });
+      
     } finally {
       setModalLoading(false);
     }
@@ -212,6 +306,17 @@ export default function AccountDashboard({ onNavigate }) {
           <User className="w-4 h-4" />
           <span>Profile &amp; Locked DOB</span>
         </button>
+
+          <button
+          onClick={() => setActiveTab('password')}
+          className={`px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'password' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Key className="w-4 h-4" />
+         <span>Manage Password</span>
+        </button>
+
 
         <button
           onClick={() => setActiveTab('bonus')}
@@ -392,43 +497,72 @@ export default function AccountDashboard({ onNavigate }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 
-                {/* DOB Box */}
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-                  <div className="flex items-center justify-between text-slate-500">
-                    <span className="font-semibold text-[11px] flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Date of Birth
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
-                      <Lock className="w-3 h-3" /> Locked
-                    </span>
-                  </div>
-                  {/* Strict display as text: "DOB: 14 September 1990" */}
-                  <div className="text-sm font-black text-slate-900 pt-1">
-                    DOB: {formatDate(user?.dob)}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Set once. Automated WhatsApp birthday greetings trigger on this date.
-                  </p>
-                </div>
+                
+{/* DOB */}
+{/* DOB */}
+<div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+  <label className="font-semibold text-[11px] flex items-center gap-1">
+    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+    Date of Birth
+  </label>
+  {user?.dob ? (
+    <>
+      <div className="text-sm font-black text-slate-900">
+        {formatDate(String(user.dob).slice(0, 10))}
+      </div>
+      <p className="text-[10px] text-amber-700 flex items-center gap-1">
+        <Lock className="w-3 h-3" />
+        Date of birth cannot be changed once saved
+      </p>
+    </>
+  ) : (
+    <>
+      <input
+        type="date"
+        value={dob ? String(dob).slice(0, 10) : ''}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => setDob(e.target.value)}
+        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
+      />
+      <p className="text-[10px] text-slate-500">
+        You can set your date of birth only once.
+      </p>
+    </>
+  )}
+</div>
 
-                {/* Anniversary Box */}
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-                  <div className="flex items-center justify-between text-slate-500">
-                    <span className="font-semibold text-[11px] flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-pink-600" /> Anniversary
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
-                      <Lock className="w-3 h-3" /> Locked
-                    </span>
-                  </div>
-                  {/* Strict display as text */}
-                  <div className="text-sm font-black text-slate-900 pt-1">
-                    Anniversary: {formatDate(user?.anniversary_date)}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Set once. Automated WhatsApp anniversary greetings trigger on this date.
-                  </p>
-                </div>
+{/* Anniversary */}
+<div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+  <label className="font-semibold text-[11px] flex items-center gap-1">
+    <Calendar className="w-3.5 h-3.5 text-pink-600" />
+    Anniversary Date
+  </label>
+
+  {user.anniversary_date ? (
+    <>
+      <div className="text-sm font-black text-slate-900">
+        {formatDate(user.anniversary_date)}
+      </div>
+      <p className="text-[10px] text-amber-700 flex items-center gap-1">
+        <Lock className="w-3 h-3" />
+        Anniversary date cannot be changed once saved
+      </p>
+    </>
+  ) : (
+    <>
+      <input
+        type="date"
+        value={anniversaryDate}
+        onChange={(e) => setAnniversaryDate(e.target.value)}
+        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
+      />
+      <p className="text-[10px] text-slate-500">
+        You can set your anniversary date only once.
+      </p>
+    </>
+  )}
+</div>
+
 
               </div>
             </div>
@@ -440,7 +574,74 @@ export default function AccountDashboard({ onNavigate }) {
               Save Profile Changes
             </button>
           </form>
+
+
+        
+
+
         </div>
+      )}
+ {activeTab === 'password' && (
+
+<div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4">
+  <h3 className="text-base font-black text-slate-900">
+    Change Password
+  </h3>
+
+  {passwordMsg && (
+    <p className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs">
+      {passwordMsg}
+    </p>
+  )}
+
+  {passwordError && (
+    <p className="p-3 bg-rose-50 text-rose-800 rounded-xl text-xs">
+      {passwordError}
+    </p>
+  )}
+
+  <form onSubmit={handleChangePassword} className="space-y-3">
+    <input
+      type="password"
+      autoComplete="current-password"
+      placeholder="Current password"
+      value={currentPassword}
+      onChange={(e) => setCurrentPassword(e.target.value)}
+      required
+      className="w-full p-3 border border-slate-200 rounded-xl"
+    />
+
+    <input
+      type="password"
+      autoComplete="new-password"
+      placeholder="New password (minimum 6 characters)"
+      value={newPassword}
+      onChange={(e) => setNewPassword(e.target.value)}
+      minLength={6}
+      required
+      className="w-full p-3 border border-slate-200 rounded-xl"
+    />
+
+    <input
+      type="password"
+      autoComplete="new-password"
+      placeholder="Confirm new password"
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+      minLength={8}
+      required
+      className="w-full p-3 border border-slate-200 rounded-xl"
+    />
+
+    <button
+      type="submit"
+      disabled={passwordLoading}
+      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+    >
+      {passwordLoading ? 'Updating...' : 'Change Password'}
+    </button>
+  </form>
+</div>
       )}
 
       {/* 3. WELCOME BONUS LEDGER TAB */}
@@ -502,7 +703,7 @@ export default function AccountDashboard({ onNavigate }) {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                     Active Plan
                   </span>
-                  <h2 className="text-xl font-black text-slate-900 mt-1">{membershipData.plan_name}</h2>
+                  <h2 className="text-xl font-black text-slate-900 mt-1">{membershipData.plan_name} {membershipData.plan_price}</h2>
                 </div>
                 <div className="text-right text-xs">
                   <span className="text-slate-400">Expires on</span>
@@ -613,6 +814,18 @@ export default function AccountDashboard({ onNavigate }) {
           </p>
         </div>
 
+         <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
+              <h2 className="font-black text-sm tracking-tight uppercase">
+                {storeSettings.store_name || 'Swastik Supermarket'}
+              </h2>
+              <p className="text-[10px] text-slate-600">
+                {storeSettings.store_address}
+              </p>
+              <p className="text-[10px] text-slate-600">
+                Phone: {storeSettings.store_mobile} | GSTIN: {storeSettings.store_gst || 'N/A'}
+              </p>
+              
+            </div>
         {/* Order Details */}
         <div className="py-3 space-y-1 border-b border-dashed border-black">
           <div className="flex justify-between gap-2">
@@ -725,19 +938,41 @@ export default function AccountDashboard({ onNavigate }) {
         </div>
 
         {/* Total */}
-        <div className="py-4 border-b border-dashed border-black">
-          <div className="flex justify-between items-center gap-2">
-            <span className="font-black text-sm">
-              TOTAL AMOUNT
-            </span>
+     <div className="py-4 border-b border-dashed border-black">
+       {Number(selectedOrder.order.coupon_discount || 0) > 0 && (
+        <div className="flex justify-between items-center gap-2 mb-2">
+          <span className="font-semibold text-sm">
+            Coupon Discount
+          </span>
+          <span className="font-semibold text-sm whitespace-nowrap">
+            -₹{Number(selectedOrder.order.coupon_discount).toFixed(2)}
+          </span>
+        </div>
+      )}
 
-            <span className="font-black text-lg whitespace-nowrap">
-              ₹{Number(
-                selectedOrder.order.grand_total || 0
-              ).toFixed(2)}
-            </span>
-          </div>
+      {Number(selectedOrder.order.bonus_discount || 0) > 0 && (
+        <div className="flex justify-between items-center gap-2 mb-3">
+          <span className="font-semibold text-sm">
+            Welcome Bonus Discount
+          </span>
+          <span className="font-semibold text-sm whitespace-nowrap">
+            -₹{Number(selectedOrder.order.bonus_discount).toFixed(2)}
+          </span>
+        </div>
+      )}
 
+        <div className="flex justify-between items-center gap-2">
+          <span className="font-black text-sm">
+            TOTAL AMOUNT
+          </span>
+
+          <span className="font-black text-lg whitespace-nowrap">
+            ₹{Number(
+              selectedOrder.order.grand_total || 0
+            ).toFixed(2)}
+          </span>
+        </div>
+      </div>
           <p className="mt-2">
             Payment: {selectedOrder.order.payment_method || "-"}
           </p>
@@ -762,7 +997,11 @@ export default function AccountDashboard({ onNavigate }) {
       </div>
     </div>
 
-    {/* Thermal receipt print styling */}
+  
+  
+)}
+
+  {/* Thermal receipt print styling */}
     <style>{`
       @media print {
         @page {
@@ -806,9 +1045,6 @@ export default function AccountDashboard({ onNavigate }) {
         }
       }
     `}</style>
-  </div>
-)}
-
 
     </div>
   );

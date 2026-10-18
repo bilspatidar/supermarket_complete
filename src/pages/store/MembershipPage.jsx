@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+
 import { Award, CheckCircle, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
 import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+
 
 export default function MembershipPage({ onNavigate }) {
   const { isAuthenticated, refreshMe } = useAuth();
@@ -33,7 +36,10 @@ export default function MembershipPage({ onNavigate }) {
 
   async function handleSubscribe(planId) {
     if (!isAuthenticated) {
-      alert('Please sign in or register to activate your VIP membership.');
+      toast.error('Please sign in or register to request your VIP membership.', {
+  duration: 2000,
+});
+
       onNavigate('login');
       return;
     }
@@ -42,12 +48,17 @@ export default function MembershipPage({ onNavigate }) {
     try {
       const res = await client.post('/membership/subscribe', { planId });
       if (res.success) {
-        alert(res.message);
+       toast.success(res.message, {
+        duration: 2000,
+      });
+
         loadPlans();
         refreshMe();
       }
     } catch (err) {
-      alert(`Subscription failed: ${err.message}`);
+      toast.error(`Subscription failed: ${err.message}`, {
+     duration: 2000,
+     });
     } finally {
       setSubscribing(false);
     }
@@ -157,7 +168,7 @@ export default function MembershipPage({ onNavigate }) {
                       : 'bg-slate-900 hover:bg-slate-800 text-white'
                   }`}
                 >
-                  <span>{subscribing ? 'Activating...' : `Activate ${plan.name}`}</span>
+                  <span>{subscribing ? 'Requesting...' : `Request ${plan.name}`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

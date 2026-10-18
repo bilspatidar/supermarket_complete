@@ -28,13 +28,14 @@
   }
 },
 "greeting": {
-    "welcome": {
-      "template_name": "welcome",
-      "language": "en",
-      "body": "Hello {{customer_name}}, welcome to {{store_name}}! Your account is ready. Enjoy fresh groceries delivered to your door.",
-      "variables": ["customer_name", "store_name"],
-      "enabled": true
-    },
+  "welcome": {
+    "template_name": "welcome",
+    "language": "en",
+    "body": "Hello {{customer_name}},\n\nYour registration with {{store_name}} has been completed successfully. You can now access your account and related services.",
+    "variables": ["customer_name", "store_name"],
+    "enabled": true
+  }
+},
    
 "birthday": {
   "template_name": "greeting_birthday",
@@ -66,7 +67,7 @@
     "body_parameters": ["customer_name", "store_name"]
   }
 }
-  },
+  ,
  "orders": {
    
 "placed": {

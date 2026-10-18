@@ -1,30 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, X, CheckCircle, Store, Phone, MapPin, Receipt, FileText } from 'lucide-react';
 import client from '../../api/client.js';
+import { useStoreSettings } from '../../context/StoreSettingsContext';
+
 
 export default function PrintBillModal({ orderData, onClose }) {
   const [thermalMode, setThermalMode] = useState(true); // Default 80mm thermal receipt
-  const [storeSettings, setStoreSettings] = useState({
-    store_name: 'Swastik Supermarket',
-    store_address: 'Plot 42, Commercial Zone, Jabalpur, MP, 482002',
-    store_mobile: '+91 98765 43210',
-    store_gst: '23AAAAA0000A1Z5',
-  });
+  const { storeSettings } = useStoreSettings();
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
 
-  async function loadSettings() {
-    try {
-      const res = await client.get('/settings');
-      if (res.success && res.data) {
-        setStoreSettings(prev => ({ ...prev, ...res.data }));
-      }
-    } catch (e) {
-      // Use defaults
-    }
-  }
 
   if (!orderData) return null;
 
@@ -275,7 +259,6 @@ export default function PrintBillModal({ orderData, onClose }) {
               <p className="font-bold uppercase tracking-wider text-slate-800">
                 *** THANK YOU FOR SHOPPING! ***
               </p>
-              <p>For return / exchange, please retain this original invoice.</p>
               <div className="pt-1 font-mono tracking-widest text-[8px] text-slate-400">
                 |||||| | |||| ||| ||||||| |||| |||||
               </div>

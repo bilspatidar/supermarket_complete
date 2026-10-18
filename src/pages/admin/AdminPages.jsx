@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FileText, Plus, Edit2, Trash2, Globe, Eye, CheckCircle, ExternalLink } from 'lucide-react';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/common/ImageUploader.jsx';
+import toast from 'react-hot-toast';
 
 export default function AdminPages() {
   const [pages, setPages] = useState([]);
@@ -126,7 +127,9 @@ export default function AdminPages() {
       await client.delete(`/cms/pages/${id}`);
       loadPages();
     } catch (err) {
-      alert(`Delete failed: ${err.message}`);
+        toast.error(`Delete failed: ${err.message}`, {
+  duration: 2000,
+});
     }
   }
 

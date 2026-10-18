@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Settings, Save, CheckCircle, ShieldCheck, MapPin, Phone, Mail, Clock, Store, MessageSquare, Plus, Trash2 } from 'lucide-react';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/common/ImageUploader.jsx';
@@ -93,7 +94,9 @@ export default function AdminSettings() {
         setMessage('Store settings and order notification recipients updated successfully.');
       }
     } catch (err) {
-      alert(`Save error: ${err.message}`);
+       toast.error(`Save error: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSaving(false);
     }

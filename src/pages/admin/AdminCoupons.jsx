@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Tag,
   Plus,
@@ -108,12 +109,16 @@ export default function AdminCoupons() {
         : Number(form.max_discount);
 
     if (!code) {
-      alert('Please enter a coupon code.');
+      toast.error('Please enter a coupon code.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!Number.isFinite(discountValue) || discountValue <= 0) {
-      alert('Discount value must be greater than zero.');
+      toast.error('Discount value must be greater than zero.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -121,7 +126,9 @@ export default function AdminCoupons() {
       form.discount_type === 'PERCENTAGE' &&
       discountValue > 100
     ) {
-      alert('Percentage discount cannot exceed 100%.');
+      toast.error('Percentage discount cannot exceed 100%.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -129,22 +136,30 @@ export default function AdminCoupons() {
       maxDiscount !== null &&
       (!Number.isFinite(maxDiscount) || maxDiscount < 0)
     ) {
-      alert('Please enter a valid maximum discount.');
+      toast.error('Please enter a valid maximum discount.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!Number.isFinite(minOrder) || minOrder < 0) {
-      alert('Minimum order amount cannot be negative.');
+      toast.error('Minimum order amount cannot be negative.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
-      alert('Per-user limit must be at least 1.');
+      toast.error('Per-user limit must be at least 1.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!['ACTIVE', 'INACTIVE'].includes(form.status)) {
-      alert('Please select a valid coupon status.');
+      toast.error('Please select a valid coupon status.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -175,9 +190,11 @@ export default function AdminCoupons() {
         );
       }
 
-      alert(
+      toast.success(
         res?.message ||
-          `Coupon ${editingCoupon ? 'updated' : 'created'} successfully.`
+          `Coupon ${editingCoupon ? 'updated' : 'created'} successfully.`, {
+  duration: 2000,
+}
       );
 
       setIsModalOpen(false);
@@ -186,7 +203,9 @@ export default function AdminCoupons() {
 
       await loadCoupons();
     } catch (err) {
-      alert(`Failed to save coupon: ${err.message}`);
+      toast.error(`Failed to save coupon: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSaving(false);
     }

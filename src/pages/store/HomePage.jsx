@@ -20,6 +20,7 @@ import { getGeneralImageUrl } from '../../utils/image.js';
 import ReviewSection from '../../components/reviews/ReviewSection.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useStoreSettings } from '../../context/StoreSettingsContext';
+import ShopPage from './ShopPage';
 
 
 

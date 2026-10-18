@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Package,
   Plus,
@@ -303,9 +304,10 @@ export default function AdminProducts() {
       loadAllData();
   
     } catch (err) {
-      console.error('Save product error:', err);
   
-      alert(`Save failed: ${err.message}`);
+      toast.error(`Save failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSavingProduct(false);
     }
@@ -349,7 +351,9 @@ export default function AdminProducts() {
       setIsCatModalOpen(false);
       loadAllData();
     } catch (err) {
-      alert(`Save category failed: ${err.message}`);
+      toast.error(`Save category failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSavingCat(false);
     }
@@ -362,7 +366,9 @@ export default function AdminProducts() {
         loadAllData();
       }
     } catch (err) {
-      alert(`Status toggle failed: ${err.message}`);
+      toast.error(`Status toggle failed: ${err.message}`, {
+  duration: 2000,
+});
     }
   }
 
@@ -402,7 +408,9 @@ export default function AdminProducts() {
       setIsBrandModalOpen(false);
       loadAllData();
     } catch (err) {
-      alert(`Save brand failed: ${err.message}`);
+      toast.error(`Save brand failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSavingBrand(false);
     }
@@ -415,7 +423,9 @@ export default function AdminProducts() {
         loadAllData();
       }
     } catch (err) {
-      alert(`Status toggle failed: ${err.message}`);
+      toast.error(`Status toggle failed: ${err.message}`, {
+  duration: 2000,
+});
     }
   }
 
@@ -439,7 +449,9 @@ export default function AdminProducts() {
       });
 
       if (res.success) {
-        alert(res.message);
+        toast.success(res.message, {
+  duration: 2000,
+});
         setDeleteModalItem(null);
         loadAllData();
       } else {
@@ -488,13 +500,17 @@ export default function AdminProducts() {
     setBulkValidationErrors([]);
     setBulkSuccessMsg('');
     if (!bulkCsvText.trim()) {
-      alert('Please paste CSV contents or upload a file');
+      toast.error('Please paste CSV contents or upload a file', {
+  duration: 2000,
+});
       return;
     }
 
     const rows = parseCSV(bulkCsvText);
     if (rows.length === 0) {
-      alert('CSV contains no data rows or header format is invalid');
+      toast.error('CSV contains no data rows or header format is invalid', {
+  duration: 2000,
+});
       return;
     }
 
@@ -510,7 +526,9 @@ export default function AdminProducts() {
       if (err.data?.errors) {
         setBulkValidationErrors(err.data.errors);
       } else {
-        alert(`Bulk Import Error: ${err.message}`);
+        toast.error(`Bulk Import Error: ${err.message}`, {
+  duration: 2000,
+});
       }
     } finally {
       setBulkImporting(false);

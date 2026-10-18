@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Layers, PlusCircle, Search, ArrowUpRight, ArrowDownRight, RefreshCcw } from 'lucide-react';
 import client from '../../api/client.js';
 
@@ -65,7 +66,9 @@ export default function AdminInventory() {
       });
 
       if (res.success) {
-        alert(res.message);
+             toast.success(res.message, {
+        duration: 2000,
+      });
         setIsAdjustModalOpen(false);
         setAdjustQty('');
         setAdjustNote('');
@@ -73,7 +76,9 @@ export default function AdminInventory() {
         loadProducts();
       }
     } catch (err) {
-      alert(`Adjustment failed: ${err.message}`);
+      toast.error(`Adjustment failed: ${err.message}`, {
+        duration: 2000,
+      });
     } finally {
       setSubmitting(false);
     }

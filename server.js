@@ -2,6 +2,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import app from './server/app.js';
 import { initScheduledTasks } from './server/jobs/scheduledTasks.js';
+import {
+  startRazorpayReconciliationJob,
+} from './server/jobs/razorpayReconciliationJob.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +47,7 @@ async function startServer() {
 
     // 3. Initialize Scheduled Background Tasks
     initScheduledTasks();
+    startRazorpayReconciliationJob();
 
     // 4. Start Server
     app.listen(PORT, '0.0.0.0', () => {

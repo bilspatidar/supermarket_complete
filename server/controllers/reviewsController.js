@@ -123,7 +123,7 @@ export async function createReview(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: 'Review submitted successfully and is awaiting approval.',
+      message: 'Review submitted successfully.',
       data: {
         id: result?.lastInsertRowid ?? result?.lastID ?? result?.insertId,
         user_id: userId,

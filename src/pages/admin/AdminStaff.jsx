@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   ShieldCheck,
   Plus,
@@ -104,7 +105,9 @@ export default function AdminStaff() {
       setStaffEmail('');
       loadData();
     } catch (err) {
-      alert(`Create staff error: ${err.message}`);
+      toast.error(`Create staff error: ${err.message}` ,{
+  duration: 2000,
+});
     } finally {
       setCreatingStaff(false);
     }
@@ -115,7 +118,9 @@ export default function AdminStaff() {
       await client.put(`/staff/${staffId}/roles`, { roleId: Number(newRoleId) });
       loadData();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message ,{
+  duration: 2000,
+});
     }
   }
 
@@ -194,7 +199,9 @@ export default function AdminStaff() {
 
   async function handleToggleRoleStatus(role) {
     if (role.name === 'SUPER_ADMIN' || role.name === 'CUSTOMER') {
-      alert('Core system roles cannot be disabled.');
+      toast.error('Core system roles cannot be disabled.' ,{
+  duration: 2000,
+});
       return;
     }
 
@@ -202,18 +209,24 @@ export default function AdminStaff() {
       await client.put(`/roles/${role.id}/status`);
       loadData();
     } catch (err) {
-      alert(`Failed to toggle status: ${err.message}`);
+      toast.error(`Failed to toggle status: ${err.message}` ,{
+  duration: 2000,
+});
     }
   }
 
   async function handleDeleteRole(role) {
     if (role.is_system === 1 || ['SUPER_ADMIN', 'CUSTOMER'].includes(role.name)) {
-      alert(`Protected system role "${role.name}" cannot be deleted.`);
+      toast.error(`Protected system role "${role.name}" cannot be deleted.` ,{
+  duration: 2000,
+});
       return;
     }
 
     if (role.user_count > 0) {
-      alert(`Cannot delete role "${role.name}" because it is currently assigned to ${role.user_count} user(s). Please reassign them to another role first.`);
+      toast.error(`Cannot delete role "${role.name}" because it is currently assigned to ${role.user_count} user(s). Please reassign them to another role first.` ,{
+  duration: 2000,
+});
       return;
     }
 
@@ -225,7 +238,9 @@ export default function AdminStaff() {
       await client.delete(`/roles/${role.id}`);
       loadData();
     } catch (err) {
-      alert(`Delete role failed: ${err.message}`);
+      toast.error(`Delete role failed: ${err.message}` ,{
+  duration: 2000,
+});
     }
   }
 

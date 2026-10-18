@@ -409,7 +409,69 @@ export async function verifyRazorpayPayment(req, res) {
     }
 
     // Verify the payment directly against Razorpay.
-    const payment = await fetchRazorpayPayment(razorpayPaymentId);
+    // const payment = await fetchRazorpayPayment(razorpayPaymentId);
+
+
+        // 1. Fetch the payment directly from Razorpay.
+    let payment = await fetchRazorpayPayment(razorpayPaymentId);
+
+    // 2. Ensure it belongs to the expected Razorpay order.
+    if (payment.order_id !== razorpayOrderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment belongs to a different Razorpay order',
+      });
+    }
+
+    // 3. Validate currency and amount BEFORE capture.
+    if (payment.currency !== CURRENCY) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unexpected payment currency',
+      });
+    }
+
+    if (!amountMatches(payment.amount, session.grand_total)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment amount does not match the checkout total',
+      });
+    }
+
+    // 4. Capture an authorized payment.
+    // If already captured, do not capture it again.
+    if (payment.status === 'authorized') {
+      const expectedAmountInPaise = Math.round(
+        Number(session.grand_total) * 100
+      );
+
+      payment = await razorpayService.capturePayment({
+        paymentId: razorpayPaymentId,
+        amountInPaise: expectedAmountInPaise,
+        currency: CURRENCY,
+      });
+    }
+
+    // 5. Continue only after capture is confirmed.
+    if (payment.status !== 'captured') {
+      return res.status(409).json({
+        success: false,
+        message: 'Payment is not captured yet. Please check payment status.',
+        paymentStatus: payment.status,
+      });
+    }
+
+    // 6. Verify the captured payment still matches the checkout.
+    if (
+      payment.order_id !== razorpayOrderId ||
+      payment.currency !== CURRENCY ||
+      !amountMatches(payment.amount, session.grand_total)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Captured payment does not match the checkout',
+      });
+    }
 
     if (payment.order_id !== razorpayOrderId) {
       return res.status(400).json({

@@ -228,11 +228,11 @@ export async function createArea(req, res) {
   try {
     const {
       name,
-      delivery_charge = 40,
-      free_delivery_minimum = 499,
-      minimum_order = 199,
-      start_time = '08:00',
-      end_time = '22:00',
+      delivery_charge,
+      free_delivery_minimum,
+      minimum_order,
+      start_time,
+      end_time,
     } = req.body;
 
     if (!name || !String(name).trim()) {
@@ -299,11 +299,11 @@ export async function updateArea(req, res) {
 
     const {
       name,
-      delivery_charge = 40,
-      free_delivery_minimum = 499,
-      minimum_order = 199,
-      start_time = '08:00',
-      end_time = '22:00',
+      delivery_charge,
+      free_delivery_minimum,
+      minimum_order,
+      start_time,
+      end_time,
     } = req.body;
 
     if (!id) {

@@ -18,6 +18,75 @@ class RazorpayService {
     return { keyId, keySecret };
   }
 
+  /**
+ * Capture an authorized Razorpay payment.
+ * Amount must be provided in paise.
+ */
+async capturePayment({
+  paymentId,
+  amountInPaise,
+  currency = 'INR',
+}) {
+  const { keyId, keySecret } = this.getCredentials();
+
+  if (
+    typeof paymentId !== 'string' ||
+    !paymentId.trim() ||
+    !Number.isSafeInteger(amountInPaise) ||
+    amountInPaise <= 0 ||
+    currency !== 'INR'
+  ) {
+    throw new Error('Invalid payment capture parameters');
+  }
+
+  const auth = Buffer
+    .from(`${keyId}:${keySecret}`)
+    .toString('base64');
+
+  const response = await fetch(
+    `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/capture`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency,
+      }),
+      signal: AbortSignal.timeout(15000),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || !data.id) {
+    console.error('[RazorpayService] Payment capture failed:', {
+      status: response.status,
+      error: data?.error?.description || data?.error?.code,
+    });
+
+    throw new Error(
+      data?.error?.description || 'Unable to capture Razorpay payment'
+    );
+  }
+
+  if (
+    data.id !== paymentId ||
+    data.status !== 'captured' ||
+    Number(data.amount) !== amountInPaise ||
+    data.currency !== currency
+  ) {
+    throw new Error(
+      'Payment capture could not be confirmed with the expected amount and currency'
+    );
+  }
+
+  return data;
+}
+
   getWebhookSecret() {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
 

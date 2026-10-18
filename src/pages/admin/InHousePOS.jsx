@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Search,
   Plus,
@@ -107,7 +108,9 @@ export default function InHousePOS() {
 
   function addItemToPos(prod) {
     if (prod.stock <= 0) {
-      alert(`Product "${prod.name}" is out of stock!`);
+      toast.error(`Product "${prod.name}" is out of stock!` ,{
+  duration: 2000,
+});
       return;
     }
 
@@ -115,7 +118,9 @@ export default function InHousePOS() {
       const existing = prev.find(i => i.product_id === prod.id);
       if (existing) {
         if (existing.quantity >= prod.stock) {
-          alert(`Cannot add more than ${prod.stock} units`);
+          toast.error(`Cannot add more than ${prod.stock} units` ,{
+  duration: 2000,
+});
           return prev;
         }
         return prev.map(i => i.product_id === prod.id ? { ...i, quantity: i.quantity + 1 } : i);
@@ -177,7 +182,9 @@ export default function InHousePOS() {
 
   async function handleCheckoutPos() {
     if (posItems.length === 0) {
-      alert('POS cart is empty!');
+      toast.error('POS cart is empty!',{
+  duration: 2000,
+});
       return;
     }
 
@@ -204,7 +211,9 @@ export default function InHousePOS() {
         loadProducts(); // refresh live stock
       }
     } catch (err) {
-      alert(`POS order failed: ${err.message}`);
+      toast.error(`POS order failed: ${err.message}`,{
+  duration: 2000,
+});
     } finally {
       setPlacingOrder(false);
     }

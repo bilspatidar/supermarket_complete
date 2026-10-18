@@ -99,14 +99,41 @@ export async function getMe(req, res) {
 
 export async function updateProfile(req, res) {
   try {
-    const updated = await authService.updateCustomerProfile(req.user.id, req.body);
+    const updated = await authService.updateCustomerProfile(
+      req.user.id,
+      req.body
+    );
+
     return res.json({
       success: true,
       message: 'Profile updated successfully',
       data: updated,
     });
   } catch (err) {
-    return res.status(400).json({ success: false, message: err.message });
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+
+export async function updatePassword(req, res) {
+  try {
+    const result = await authService.updateCustomerPassword(
+      req.user.id,
+      req.body
+    );
+
+    return res.json({
+      success: true,
+      message: result.message,
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 }
 
@@ -143,4 +170,5 @@ export default {
   getMe,
   updateProfile,
   adminCorrectPersonalData,
+  updatePassword,
 };

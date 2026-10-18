@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { ShieldCheck, ShieldAlert, MapPin, Clock, Tag, Gift, CreditCard, Banknote, ArrowRight, CheckCircle, AlertCircle, Plus, User } from 'lucide-react';
 import client from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -29,6 +30,8 @@ export default function CheckoutPage({ onNavigate }) {
   const [calculation, setCalculation] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError, setCalcError] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponApplying, setCouponApplying] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
 
   const codEnabled =
@@ -95,41 +98,136 @@ export default function CheckoutPage({ onNavigate }) {
     }
   }
 
+  function getRequestErrorMessage(err, fallback = 'Unable to calculate order pricing') {
+    return (
+      err?.response?.data?.message ||
+      err?.data?.message ||
+      err?.message ||
+      fallback
+    );
+  }
+
+  async function requestCalculation({ coupon = appliedCoupon, bonus = useBonus } = {}) {
+    const res = await client.post('/orders/calculate', {
+      items: items.map(i => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+      })),
+      couponCode: coupon || null,
+      useBonus: Boolean(bonus),
+      areaId: selectedArea.id,
+      subAreaId: selectedSubArea.id,
+      source: 'ONLINE',
+    });
+
+    if (!res?.success || !res?.data) {
+      throw new Error(res?.message || 'Unable to calculate order pricing');
+    }
+
+    return res.data;
+  }
+
   async function runCalculation() {
     if (items.length === 0 || !selectedArea || !selectedSubArea) return;
+
     setCalcLoading(true);
     setCalcError('');
 
     try {
-      const res = await client.post('/orders/calculate', {
-        items: items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
-        couponCode: appliedCoupon || null,
-        useBonus,
-        areaId: selectedArea.id,
-        subAreaId: selectedSubArea.id,
-        source: 'ONLINE',
-      });
-
-      if (res.success) {
-        setCalculation(res.data);
-      }
+      const result = await requestCalculation();
+      setCalculation(result);
+      setCouponError('');
     } catch (err) {
-      setCalcError(err.message);
-      setCalculation(null);
+      const message = getRequestErrorMessage(err);
+
+      // If an applied coupon becomes invalid/expired, remove it and recalculate
+      // without the coupon so the base total and eligible bonus remain visible.
+      if (appliedCoupon) {
+        setAppliedCoupon('');
+        setCouponCode('');
+        setCouponError(message);
+
+        try {
+          const baseResult = await requestCalculation({ coupon: null, bonus: useBonus });
+          setCalculation(baseResult);
+          setCalcError('');
+        } catch (baseErr) {
+          setCalculation(null);
+          setCalcError(getRequestErrorMessage(baseErr));
+        }
+      } else {
+        setCalcError(message);
+        setCalculation(null);
+      }
     } finally {
       setCalcLoading(false);
     }
   }
 
-  function handleApplyCoupon(e) {
+  async function handleApplyCoupon(e) {
     e.preventDefault();
-    if (!couponCode.trim()) return;
-    setAppliedCoupon(couponCode.trim().toUpperCase());
+
+    const code = couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponError('Please enter a coupon code.');
+      return;
+    }
+
+    if (!items.length) {
+      setCouponError('Your basket is empty.');
+      return;
+    }
+
+    if (!selectedArea || !selectedSubArea) {
+      setCouponError('Please select a delivery area and sub-area first.');
+      return;
+    }
+
+    setCouponApplying(true);
+    setCouponError('');
+
+    try {
+      const result = await requestCalculation({ coupon: code, bonus: useBonus });
+
+      // Show the coupon as applied only after the server confirms it.
+      if (
+        !result.applied_coupon ||
+        String(result.applied_coupon.code || '').trim().toUpperCase() !== code
+      ) {
+        throw new Error('The server did not confirm this coupon as valid.');
+      }
+
+      setAppliedCoupon(code);
+      setCalculation(result);
+      setCalcError('');
+      setCouponError('');
+      toast.success('Coupon applied successfully');
+    } catch (err) {
+      const message = getRequestErrorMessage(err, 'Coupon is invalid or inactive');
+      setCouponError(message);
+      setAppliedCoupon('');
+
+      // An invalid coupon must not erase the order summary or bonus balance.
+      try {
+        const baseResult = await requestCalculation({ coupon: null, bonus: useBonus });
+        setCalculation(baseResult);
+        setCalcError('');
+      } catch (baseErr) {
+        setCalcError(getRequestErrorMessage(baseErr));
+        setCalculation(null);
+      }
+
+      toast.error(message);
+    } finally {
+      setCouponApplying(false);
+    }
   }
 
   function handleRemoveCoupon() {
     setAppliedCoupon('');
     setCouponCode('');
+    setCouponError('');
+    setCalcError('');
   }
 
 
@@ -162,45 +260,61 @@ function loadRazorpayScript() {
   
 async function handlePlaceOrder() {
   if (!isAuthenticated) {
-    alert('Please log in or register before completing your order.');
+    toast.error('Please log in or register before completing your order.', {
+  duration: 2000,
+});
     onNavigate('login');
     return;
   }
 
   if (user?.account_type === 'INTERNAL') {
-    alert(
-      'Access Denied: Internal staff/administrator accounts cannot place customer online store orders. Please use a customer account.'
+    toast.error(
+      'Access Denied: Internal staff/administrator accounts cannot place customer online store orders. Please use a customer account.', {
+  duration: 2000,
+}
     );
     return;
   }
 
   if (!selectedArea || !selectedSubArea) {
-    alert('Please select a delivery Area and Sub-Area.');
+    toast.error('Please select a delivery Area and Sub-Area.', {
+  duration: 2000,
+});
     return;
   }
 
   if (!addressLine.trim() || !pincode.trim()) {
-    alert('Please enter your street address and pincode.');
+    toast.error('Please enter your street address and pincode.', {
+  duration: 2000,
+});
     return;
   }
 
   if (calcError) {
-    alert(`Cannot place order: ${calcError}`);
+    toast.error(`Cannot place order: ${calcError}`, {
+  duration: 2000,
+});
     return;
   }
 
   if (!items.length) {
-    alert('Your basket is empty.');
+    toast.error('Your basket is empty.', {
+  duration: 2000,
+});
     return;
   }
 
   if (paymentMethod === 'RAZORPAY' && !razorpayEnabled) {
-    alert('Online payment is currently unavailable.');
+    toast.error('Online payment is currently unavailable.', {
+  duration: 2000,
+});
     return;
   }
 
   if (paymentMethod === 'COD' && !codEnabled) {
-    alert('Cash on Delivery is currently unavailable.');
+    toast.error('Cash on Delivery is currently unavailable.', {
+  duration: 2000,
+});
     return;
   }
 
@@ -347,8 +461,10 @@ if (
         } catch (error) {
           console.error('[Checkout] Razorpay verification error:', error);
 
-          alert(
-            'Payment was submitted, but order confirmation could not be completed. Do not pay again yet. Please check your order/payment status or contact support.'
+          toast.error(
+            'Payment was submitted, but order confirmation could not be completed. Do not pay again yet. Please check your order/payment status or contact support.', {
+  duration: 2000,
+}
           );
         } finally {
           setPlacingOrder(false);
@@ -367,9 +483,11 @@ if (
     razorpay.on('payment.failed', function (response) {
       console.error('[Razorpay] Payment failed:', response.error);
 
-      alert(
+      toast.error(
         response.error?.description ||
-        'Payment failed. You can try again.'
+        'Payment failed. You can try again.', {
+  duration: 2000,
+}
       );
 
       setPlacingOrder(false);
@@ -383,14 +501,14 @@ if (
   currency: options.currency,
 });
 
-razorpay.open();
+  razorpay.open();
 
-
-    razorpay.open();
   } catch (error) {
     console.error('[Checkout] Order/payment initialization error:', error);
 
-    alert(`Order placement failed: ${error.message}`);
+    toast.error(`Order placement failed: ${error.message}`, {
+  duration: 2000,
+});
     setPlacingOrder(false);
   }
 }
@@ -614,10 +732,10 @@ razorpay.open();
 
           {/* Section 3: Delivery Slots */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-3">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Clock className="w-4 h-4 text-emerald-600" />
+            {/* <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+               <Clock className="w-4 h-4 text-emerald-600" />
               <span>3. Preferred Delivery Slot</span>
-            </h3>
+            </h3> */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {slots.map(s => (
                 <button
@@ -708,17 +826,26 @@ razorpay.open();
                   <input
                     type="text"
                     value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      if (couponError) setCouponError('');
+                    }}
                     placeholder="e.g. WELCOME50, FRESH10"
                     className="flex-1 p-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 uppercase font-bold"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer"
+                    disabled={couponApplying || calcLoading}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Apply
+                    {couponApplying ? 'Checking...' : 'Apply'}
                   </button>
                 </form>
+              )}
+              {couponError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+                  {couponError}
+                </div>
               )}
             </div>
 
@@ -744,6 +871,14 @@ razorpay.open();
                 </label>
               </div>
             )}
+            {useBonus &&
+              calculation &&
+              Number(calculation.available_bonus || 0) > 0 &&
+              Number(calculation.bonus_discount || 0) <= 0 && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+                  Bonus credit is available, but it is not eligible for this order. Check the welcome-bonus minimum order and coupon/membership rules.
+                </p>
+              )}
 
             {/* Line items pricing breakdown */}
             {calculation ? (
@@ -842,7 +977,7 @@ razorpay.open();
             {/* Place Order CTA */}
             <button
               type="button"
-              disabled={placingOrder || Boolean(calcError) || calcLoading || user?.account_type === 'INTERNAL'}
+              disabled={placingOrder || Boolean(calcError) || calcLoading || couponApplying || !calculation || user?.account_type === 'INTERNAL'}
               onClick={handlePlaceOrder}
               className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-lg transition-transform active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
