@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   BarChart3,
   TrendingUp,
@@ -109,7 +110,9 @@ export default function AdminReports() {
       a.click();
       a.remove();
     } catch (err) {
-      alert(`Export error: ${err.message}`);
+       toast.error(`Export error: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setExporting(false);
     }

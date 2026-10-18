@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import client from '../api/client.js';
 import { useAuth } from './AuthContext.jsx';
 
@@ -45,7 +46,9 @@ export function CartProvider({ children }) {
         return res.data;
       }
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message, {
+  duration: 2000,
+});
       throw err;
     }
   }
@@ -60,7 +63,9 @@ export function CartProvider({ children }) {
         return res.data;
       }
     } catch (err) {
-      alert(err.message);
+          toast.error(err.message, {
+          duration: 2000,
+        });
       throw err;
     }
   }

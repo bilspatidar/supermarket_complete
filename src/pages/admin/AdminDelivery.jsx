@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   MapPin,
   Plus,
@@ -18,11 +19,11 @@ export default function AdminDelivery() {
   // New Area Modal
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
   const [areaName, setAreaName] = useState('');
-  const [areaFee, setAreaFee] = useState('40');
-  const [areaFreeMin, setAreaFreeMin] = useState('499');
-  const [areaMinOrder, setAreaMinOrder] = useState('199');
-  const [areaStart, setAreaStart] = useState('08:00');
-  const [areaEnd, setAreaEnd] = useState('22:00');
+  const [areaFee, setAreaFee] = useState('');
+  const [areaFreeMin, setAreaFreeMin] = useState('');
+  const [areaMinOrder, setAreaMinOrder] = useState('');
+  const [areaStart, setAreaStart] = useState('');
+  const [areaEnd, setAreaEnd] = useState('');
 
   // New Sub-Area Modal
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
@@ -75,7 +76,9 @@ const [editingSubArea, setEditingSubArea] = useState(null);
       setAreaName('');
       loadZones();
     } catch (err) {
-      alert(err.message);
+                 toast.error(err.message, {
+  duration: 2000,
+});
     }
   }
 
@@ -106,7 +109,9 @@ const [editingSubArea, setEditingSubArea] = useState(null);
 
     await loadZones();
   } catch (err) {
-    alert(err.message);
+               toast.error(err.message, {
+  duration: 2000,
+});
   }
 }
 
@@ -125,7 +130,9 @@ const [editingSubArea, setEditingSubArea] = useState(null);
       setSubFreeMin('');
       loadZones();
     } catch (err) {
-      alert(err.message);
+                 toast.error(err.message, {
+  duration: 2000,
+});
     }
   }
 
@@ -154,7 +161,9 @@ const [editingSubArea, setEditingSubArea] = useState(null);
 
     await loadZones();
   } catch (err) {
-    alert(err.message);
+              toast.error(err.message, {
+  duration: 2000,
+});
   }
 }
 
@@ -170,7 +179,9 @@ async function handleDeleteArea(area) {
 
     await loadZones();
   } catch (err) {
-    alert(err.message);
+               toast.error(err.message, {
+  duration: 2000,
+});
   }
 }
 
@@ -186,7 +197,9 @@ async function handleDeleteSubArea(sub) {
 
     await loadZones();
   } catch (err) {
-    alert(err.message);
+               toast.error(err.message, {
+  duration: 2000,
+});
   }
 }
 function openEditArea(area) {

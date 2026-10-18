@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { DeliveryProvider } from './context/DeliveryContext.jsx';
 import { ShieldCheck, Lock, ArrowRight, User } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 import Header from './components/common/Header.jsx';
 import Footer from './components/common/Footer.jsx';
@@ -37,10 +38,12 @@ import AdminCoupons from './pages/admin/AdminCoupons.jsx';
 import AdminReports from './pages/admin/AdminReports.jsx';
 import AdminStaff from './pages/admin/AdminStaff.jsx';
 import AdminSettings from './pages/admin/AdminSettings.jsx';
+import AdminMembershipList  from './pages/admin/AdminMembershipList.jsx';
 import AdminAudit from './pages/admin/AdminAudit.jsx';
 import AdminHomeSlider from './pages/admin/AdminHomeSlider.jsx';
 import AdminPages from './pages/admin/AdminPages.jsx';
 import client from './api/client.js';
+
 
 
 function routeFromLocation() {
@@ -76,6 +79,8 @@ function routeFromLocation() {
       staff: 'admin-staff',
       settings: 'admin-settings',
       audit: 'admin-audit',
+      'membership-list': 'admin-membership-list',
+      reviews: 'admin-reviews',
     };
 
     return {
@@ -138,6 +143,8 @@ function routeFromLocation() {
       params: {},
     };
   }
+
+  
 
   if (pathname === '/about') {
     return {
@@ -289,6 +296,9 @@ function locationFromRoute(route, params = {}) {
     case 'admin-reviews':
       return '/admin/reviews';  
 
+      case 'admin-membership-list':
+      return '/admin/membership-list';  
+      
     case 'admin-delivery':
       return '/admin/delivery';
 
@@ -398,7 +408,16 @@ function MainRouter() {
 
   // --- INTERNAL PROTECTED ROUTE GUARD (Requirement 12, 13, 14) ---
   if (isAdminRoute) {
-    if (!loading && (!user || user.account_type !== 'INTERNAL')) {
+      if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-600">
+          Verifying access...
+        </div>
+      </div>
+    );
+  }
+     if (!user || user.account_type !== 'INTERNAL') {
       return (
         <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
           <Header onNavigate={navigate} currentRoute={route} storeSettings={storeSettings}/>
@@ -433,6 +452,7 @@ function MainRouter() {
         {route === 'admin-products' && <AdminProducts onNavigate={navigate} />}
         {route === 'admin-inventory' && <AdminInventory onNavigate={navigate} />}
         {route === 'admin-customers' && <AdminCustomers onNavigate={navigate} />}
+        {route === 'admin-membership-list' && <AdminMembershipList onNavigate={navigate} />}
         {route === 'admin-reviews' && <AdminReviews onNavigate={navigate} />}
         {route === 'admin-contacts' && <AdminContacts onNavigate={navigate} />}
         {route === 'admin-delivery' && <AdminDelivery onNavigate={navigate} />}
@@ -548,9 +568,18 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <DeliveryProvider>
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            toastOptions={{
+              duration: 3000,
+            }}
+          />
+
           <MainRouter />
         </DeliveryProvider>
       </CartProvider>
     </AuthProvider>
   );
 }
+

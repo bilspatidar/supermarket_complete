@@ -42,6 +42,7 @@ router.post('/auth/otp/verify', authController.verifyOtp);
 router.post('/auth/register', authController.register);
 router.get('/auth/me', authenticate, authController.getMe);
 router.put('/auth/profile', authenticate, requireCustomer, authController.updateProfile);
+router.put('/auth/change-password', authenticate, requireCustomer, authController.updatePassword);
 router.post(
   '/auth/admin/correct-personal-data',
   authenticate,
@@ -378,6 +379,24 @@ router.put(
   requirePermission('membership.update'),
   membershipController.updatePlan
 );
+
+router.get(
+  '/adminmembership/list',
+  authenticate,
+  requireInternal,
+  requirePermission('membership.view'),
+  membershipController.getAdminMemberships
+);
+
+
+router.put(
+  '/adminmembership/:id/status',
+  authenticate,
+  requireInternal,
+  requirePermission('membership.update'),
+  membershipController.updateMembershipStatus
+);
+
 
 // -------------------------------------------------------------
 // 9. Coupons

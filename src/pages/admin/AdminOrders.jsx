@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Search,
   Eye,
@@ -151,7 +152,9 @@ export default function AdminOrders() {
       a.click();
       a.remove();
     } catch (err) {
-      alert(`Export failed: ${err.message}`);
+      toast.error(`Export failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setExporting(false);
     }
@@ -168,7 +171,9 @@ export default function AdminOrders() {
         );
       }
     } catch (err) {
-      alert(`Failed to load order details: ${err.message}`);
+      toast.error(`Failed to load order details: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setModalLoading(false);
     }
@@ -176,7 +181,9 @@ export default function AdminOrders() {
 
   async function handleStatusChange(orderId, newStatus) {
     if (newStatus === 'OUT_FOR_DELIVERY' && !assignDeliveryStaffId) {
-      alert('Please select a Delivery Staff member before setting status to OUT_FOR_DELIVERY.');
+      toast.error('Please select a Delivery Staff member before setting status to OUT_FOR_DELIVERY.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -200,13 +207,17 @@ export default function AdminOrders() {
         delivery_staff_id: assignDeliveryStaffId ? Number(assignDeliveryStaffId) : undefined,
       });
       if (res.success) {
-        alert(res.message);
+        toast.success(res.message, {
+  duration: 2000,
+});
         setStatusUpdateNote('');
         loadOrders();
         viewOrderDetails(orderId);
       }
     } catch (err) {
-      alert(`Update failed: ${err.message}`);
+      toast.error(`Update failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setUpdatingStatus(false);
     }
@@ -222,12 +233,14 @@ export default function AdminOrders() {
         settlementNote: 'Cash handed over to store by delivery staff',
       });
       if (res.success) {
-        alert(res.message);
+        toast.success(res.message);
         loadOrders();
         viewOrderDetails(orderId);
       }
     } catch (err) {
-      alert(`COD settlement failed: ${err.message}`);
+      toast.error(`COD settlement failed: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSettlingCod(false);
     }
@@ -700,7 +713,7 @@ export default function AdminOrders() {
                 <div className="flex justify-between text-emerald-700"><span>VIP Discount:</span><strong>-₹{selectedOrder.order.membership_discount}</strong></div>
               )}
               {selectedOrder.order.coupon_discount > 0 && (
-                <div className="flex justify-between text-emerald-700"><span>Coupon ({selectedOrder.order.coupon_code}):</span><strong>-₹{selectedOrder.order.coupon_discount}</strong></div>
+                <div className="flex justify-between text-emerald-700"><span>Coupon :</span><strong>-₹{selectedOrder.order.coupon_discount}</strong></div>
               )}
               {selectedOrder.order.bonus_discount > 0 && (
                 <div className="flex justify-between text-amber-800"><span>Welcome Bonus:</span><strong>-₹{selectedOrder.order.bonus_discount}</strong></div>

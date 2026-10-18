@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Users,
   Search,
@@ -79,7 +80,9 @@ export default function AdminCustomers() {
         setCustomerDetail(res.data);
       }
     } catch (err) {
-      alert(`Failed to load customer profile: ${err.message}`);
+      toast.error(`Failed to load customer profile: ${err.message}`, {
+        duration: 2000,
+      });
     } finally {
       setDetailLoading(false);
     }
@@ -106,7 +109,9 @@ export default function AdminCustomers() {
       a.click();
       a.remove();
     } catch (err) {
-      alert(`Export error: ${err.message}`);
+      toast.error(`Export error: ${err.message}`, {
+        duration: 2000,
+      });
     } finally {
       setExporting(false);
     }
@@ -132,7 +137,9 @@ export default function AdminCustomers() {
       });
 
       if (res.success) {
-        alert('Personal data updated and audit log recorded.');
+        toast.success('Personal data updated and audit log recorded.', {
+        duration: 2000,
+      });
         setCorrectModalCust(null);
         loadCustomers();
         if (selectedCustomerId === correctModalCust.id) {
@@ -140,7 +147,9 @@ export default function AdminCustomers() {
         }
       }
     } catch (err) {
-      alert(`Correction failed: ${err.message}`);
+      toast.error(`Correction failed: ${err.message}`, {
+        duration: 2000,
+      });
     } finally {
       setSubmittingCorrection(false);
     }
@@ -159,7 +168,9 @@ export default function AdminCustomers() {
       });
 
       if (res.success) {
-        alert(res.message);
+        toast.success(res.message, {
+        duration: 2000,
+      });
         setDeleteModalCust(null);
         loadCustomers();
       } else {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Layers, Plus, Edit2, Trash2, CheckCircle, XCircle, ArrowUpDown, Calendar, Link, Image as ImageIcon } from 'lucide-react';
 import client from '../../api/client.js';
 import ImageUploader from '../../components/common/ImageUploader.jsx';
@@ -121,7 +122,7 @@ export default function AdminHomeSlider() {
       await client.delete(`/cms/sliders/${id}`);
       loadSliders();
     } catch (err) {
-      alert(`Delete failed: ${err.message}`);
+      toast.error(`Delete failed: ${err.message}`);
     }
   }
 

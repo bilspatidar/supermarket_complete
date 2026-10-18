@@ -23,7 +23,7 @@ export async function authenticate(req, res, next) {
 
     // Verify user is still active in DB
     const user = await db.get(
-      'SELECT id, uuid, mobile, name, email, status, account_type FROM users WHERE id = ?',
+      'SELECT id, uuid, mobile, name, email, dob, anniversary_date, status, account_type FROM users WHERE id = ?',
       [decoded.id]
     );
 
@@ -57,6 +57,8 @@ export async function authenticate(req, res, next) {
       uuid: user.uuid,
       mobile: user.mobile,
       name: user.name,
+      dob: user.dob,
+      anniversary_date: user.anniversary_date,
       email: user.email,
       account_type: user.account_type || 'CUSTOMER',
       roles,

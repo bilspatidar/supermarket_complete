@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import db from '../../database/connection.js';
 import whatsAppService from '../integrations/whatsapp/WhatsAppService.js';
 
+
 // In-memory OTP cache for demo/fast development: mobile -> { otp, expiresAt }
 const otpStore = new Map();
 
@@ -118,15 +119,65 @@ class AuthService {
     }
 
     // Trigger Welcome Bonus (Promotional Account Credit)
-    await this.triggerWelcomeBonusIfEligible(userId, name, cleanMobile);
+    
+    // Trigger Welcome Bonus
 
-    // Asynchronously send Welcome greeting message
-    // whatsAppService.send({
-    //   recipient: cleanMobile,
-    //   templateKey: 'greeting.welcome',
-    //   variables: { customer_name: name },
-    //   userId,
-    // });
+    try {
+
+      await this.triggerWelcomeBonusIfEligible(
+        userId,
+        name,
+        cleanMobile
+      );
+
+      const bonusCheck = await db.get(
+        `SELECT id, amount, status
+         FROM customer_bonus_transactions
+         WHERE user_id = ? AND type = 'WELCOME_BONUS'
+         ORDER BY id DESC LIMIT 1`,
+        [userId]
+      );
+
+      console.log('[REGISTER DEBUG] Bonus verification:', {
+        userId,
+        credited: !!bonusCheck,
+        transaction: bonusCheck || null,
+      });
+    } catch (err) {
+      console.error('[REGISTER DEBUG] Bonus flow failed:', {
+        userId,
+        message: err.message,
+        code: err.code,
+      });
+    }
+
+    // Send registration welcome message (bonus notification remains disabled)
+    Promise.resolve()
+      .then(() =>
+        whatsAppService.send({
+          recipient: cleanMobile,
+          templateKey: 'greeting.welcome',
+          variables: {
+            customer_name: name || 'Valued Customer',
+            store_name: 'Swastik Supermarket',
+          },
+          userId,
+        })
+      )
+      .then((result) => {
+        console.log('[REGISTER DEBUG] Welcome WhatsApp send result:', {
+          userId,
+          result,
+        });
+      })
+      .catch((err) => {
+        console.error('[REGISTER DEBUG] Welcome WhatsApp failed:', {
+          userId,
+          message: err.message,
+          status: err.response?.status || err.status,
+          providerError: err.response?.data || err.providerError || null,
+        });
+      });
 
     // Record login history
     await db.run(
@@ -183,49 +234,114 @@ class AuthService {
   /**
    * Trigger Welcome Bonus (Promotional Credit) idempotently
    */
-  async triggerWelcomeBonusIfEligible(userId, customerName, mobile) {
-    try {
-      const setting = await db.get("SELECT value FROM store_settings WHERE key = 'welcome_bonus_enabled'");
-      if (setting?.value === 'false') return;
+ async triggerWelcomeBonusIfEligible(userId, customerName, mobile) {
+  try {
+    const setting = await db.get(
+      "SELECT value FROM store_settings WHERE setting_key = 'welcome_bonus_enabled'"
+    );
 
-      // Idempotency: verify user hasn't received welcome bonus already
-      const existing = await db.get(
-        "SELECT id FROM customer_bonus_transactions WHERE user_id = ? AND type = 'WELCOME_BONUS'",
-        [userId]
-      );
-      if (existing) return;
+ 
 
-      const amountRow = await db.get("SELECT value FROM store_settings WHERE key = 'welcome_bonus_amount'");
-      const validityRow = await db.get("SELECT value FROM store_settings WHERE key = 'welcome_bonus_validity_days'");
-      const minOrderRow = await db.get("SELECT value FROM store_settings WHERE key = 'welcome_bonus_min_order'");
-
-      const amount = Number(amountRow?.value || 100);
-      const validityDays = Number(validityRow?.value || 30);
-      const minOrder = Number(minOrderRow?.value || 499);
-
-      const expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString();
-
-      await db.run(
-        `INSERT INTO customer_bonus_transactions (
-          user_id, type, amount, reference_type, reference_id, expires_at, status, description
-        ) VALUES (?, 'WELCOME_BONUS', ?, 'REGISTRATION', ?, ?, 'ACTIVE', 'Promotional Welcome Credit')`,
-        [userId, amount, `REG-${userId}`, expiresAt]
-      );
-
-      // WhatsApp notification for bonus received
-      whatsAppService.send({
-        recipient: mobile,
-        templateKey: 'welcome_bonus.received',
-        variables: {
-          bonus_amount: amount,
-          min_order: minOrder,
-        },
-        userId,
-      });
-    } catch (err) {
-      console.error('[AuthService] Welcome bonus error:', err.message);
+if (setting && String(setting.value).toLowerCase() !== 'true') {
+  return;
+}
+    if (
+      setting &&
+      String(setting.value).toLowerCase() !== 'true'
+    ) {
+      return;
     }
+
+    const existing = await db.get(
+      `SELECT id
+       FROM customer_bonus_transactions
+       WHERE user_id = ? AND type = 'WELCOME_BONUS'`,
+      [userId]
+    );
+
+    if (existing) return;
+
+    const amountRow = await db.get(
+      "SELECT value FROM store_settings WHERE setting_key = 'welcome_bonus_amount'"
+    );
+
+    const validityRow = await db.get(
+      "SELECT value FROM store_settings WHERE setting_key = 'welcome_bonus_validity_days'"
+    );
+
+    const minOrderRow = await db.get(
+      "SELECT value FROM store_settings WHERE setting_key = 'welcome_bonus_min_order'"
+    );
+
+    const amount = Number(amountRow?.value ?? 10);
+    const validityDays = Number(validityRow?.value ?? 30);
+    const minOrder = Number(minOrderRow?.value ?? 499);
+
+  
+    if (
+      !Number.isFinite(amount) || amount <= 0 ||
+      !Number.isFinite(validityDays) || validityDays <= 0 ||
+      !Number.isFinite(minOrder) || minOrder < 0
+    ) {
+      throw new Error('Invalid welcome bonus configuration');
+    }
+
+   const expiresAt = new Date(
+      Date.now() + validityDays * 24 * 60 * 60 * 1000
+    )
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+
+ 
+    const insertResult = await db.run(
+      `INSERT INTO customer_bonus_transactions (
+        user_id,
+        type,
+        amount,
+        reference_type,
+        reference_id,
+        expires_at,
+        status,
+        description
+      ) VALUES (?, 'WELCOME_BONUS', ?, 'REGISTRATION', ?, ?, 'ACTIVE', ?)`,
+      [
+        userId,
+        amount,
+        `REG-${userId}`,
+        expiresAt,
+        'Promotional Welcome Credit',
+      ]
+    );
+
+
+
+    // Send bonus notification independently of the credit.
+    // Promise.resolve()
+    //   .then(() =>
+    //     whatsAppService.send({
+    //       recipient: mobile,
+    //       templateKey: 'welcome_bonus.received',
+    //       variables: {
+    //         bonus_amount: amount,
+    //         min_order: minOrder,
+    //       },
+    //       userId,
+    //     })
+    //   )
+    //   .catch((err) => {
+    //     console.error(
+    //       '[AuthService] Welcome bonus WhatsApp failed:',
+    //       err.response?.data || err.message || err
+    //     );
+    //   });
+  } catch (err) {
+    console.error(
+      `[AuthService] Welcome bonus failed for user ${userId}:`,
+      err.message
+    );
   }
+}
 
   /**
    * Authenticate via Mobile + Password
@@ -361,54 +477,174 @@ class AuthService {
   /**
    * Customer Profile Update - Strictly enforces DOB & Anniversary LOCK
    */
-  async updateCustomerProfile(userId, { name, email, dob, anniversaryDate, profileImage }) {
-    const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
-    if (!user) {
-      throw new Error('User not found');
-    }
 
-    // CHECK DOB LOCK
-    let finalDob = user.dob;
-    let dobLocked = user.dob_locked;
-    if (dob && dob !== user.dob) {
-      if (user.dob_locked) {
-        throw new Error('Date of Birth is set once and cannot be modified. Contact store admin for corrections.');
-      }
-      finalDob = dob;
-      dobLocked = 1;
-    }
+async updateCustomerProfile(
+  userId,
+  {
+    name,
+    email,
+    dob,
+    anniversaryDate,
+    anniversary_date,
+    profileImage,
+    profile_image,
+  }
+) {
+  const user = await db.get(
+    'SELECT * FROM users WHERE id = ?',
+    [userId]
+  );
 
-    // CHECK ANNIVERSARY LOCK
-    let finalAnniv = user.anniversary_date;
-    let annivLocked = user.anniversary_locked;
-    if (anniversaryDate && anniversaryDate !== user.anniversary_date) {
-      if (user.anniversary_locked) {
-        throw new Error('Anniversary date is set once and cannot be modified. Contact store admin for corrections.');
-      }
-      finalAnniv = anniversaryDate;
-      annivLocked = 1;
-    }
-
-    await db.run(
-      `UPDATE users 
-       SET name = ?, email = ?, dob = ?, anniversary_date = ?, profile_image = ?,
-           dob_locked = ?, anniversary_locked = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [
-        name || user.name,
-        email !== undefined ? email : user.email,
-        finalDob,
-        finalAnniv,
-        profileImage || user.profile_image,
-        dobLocked,
-        annivLocked,
-        userId,
-      ]
-    );
-
-    return await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+  if (!user) {
+    throw new Error('User not found');
   }
 
+  // Normalize both frontend naming conventions.
+  const incomingAnniversary =
+    anniversaryDate !== undefined
+      ? anniversaryDate
+      : anniversary_date;
+
+  const incomingProfileImage =
+    profileImage !== undefined
+      ? profileImage
+      : profile_image;
+
+  // Preserve existing values when a field is omitted.
+  const finalName =
+    name !== undefined ? name : user.name;
+
+  const finalEmail =
+    email !== undefined ? email : user.email;
+
+  const finalDob =
+    dob !== undefined ? dob : user.dob;
+
+  const finalAnniv =
+    incomingAnniversary !== undefined
+      ? incomingAnniversary
+      : user.anniversary_date;
+
+  const finalProfileImage =
+    incomingProfileImage !== undefined
+      ? incomingProfileImage
+      : user.profile_image;
+
+  // Lock dates after they are first saved.
+  if (
+    user.dob &&
+    dob !== undefined &&
+    dob !== user.dob
+  ) {
+    throw new Error(
+      'Date of birth cannot be changed once saved.'
+    );
+  }
+
+  if (
+    user.anniversary_date &&
+    incomingAnniversary !== undefined &&
+    incomingAnniversary !== user.anniversary_date
+  ) {
+    throw new Error(
+      'Anniversary date cannot be changed once saved.'
+    );
+  }
+
+  const dobLocked =
+    user.dob_locked || (finalDob ? 1 : 0);
+
+  const anniversaryLocked =
+    user.anniversary_locked || (finalAnniv ? 1 : 0);
+
+  await db.run(
+    `UPDATE users
+     SET name = ?,
+         email = ?,
+         dob = ?,
+         anniversary_date = ?,
+         profile_image = ?,
+         dob_locked = ?,
+         anniversary_locked = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [
+      finalName,
+      finalEmail,
+      finalDob ?? null,
+      finalAnniv ?? null,
+      finalProfileImage ?? null,
+      dobLocked,
+      anniversaryLocked,
+      userId,
+    ]
+  );
+
+  return await db.get(
+    'SELECT * FROM users WHERE id = ?',
+    [userId]
+  );
+}
+
+
+
+
+async updateCustomerPassword(userId, { currentPassword, newPassword }) {
+  const user = await db.get(
+    'SELECT * FROM users WHERE id = ?',
+    [userId]
+  );
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('New password must be at least 6 characters long');
+  }
+
+  // If the user already has a password, verify the current password.
+  if (user.password) {
+    if (!currentPassword) {
+      throw new Error('Current password is required');
+    }
+
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isMatch) {
+      throw new Error('Current password is incorrect');
+    }
+
+    const isSamePassword = await bcrypt.compare(
+      newPassword,
+      user.password
+    );
+
+    if (isSamePassword) {
+      throw new Error('New password must be different from the current password');
+    }
+  }
+
+  // If no password exists, set the new password directly.
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await db.run(
+    `UPDATE users
+     SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [hashedPassword, userId]
+  );
+
+  return {
+    success: true,
+    message: user.password
+      ? 'Password changed successfully'
+      : 'Password set successfully'
+  };
+}
   /**
    * Admin / Staff DOB & Anniversary Correction with Mandatory Audit Log
    */

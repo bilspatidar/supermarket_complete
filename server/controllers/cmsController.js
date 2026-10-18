@@ -3,21 +3,42 @@ import db from '../../database/connection.js';
 /**
  * Public: Get active sliders within valid date range
  */
+
+
 export async function getSliders(req, res) {
   try {
     const sliders = await db.query(`
-      SELECT * FROM home_sliders 
+      SELECT *
+      FROM home_sliders
       WHERE status = 'ACTIVE'
-        AND (start_date IS NULL OR start_date = '' OR DATE(start_date) <= DATE('now'))
-        AND (end_date IS NULL OR end_date = '' OR DATE(end_date) >= DATE('now'))
+        AND CASE
+          WHEN start_date IS NULL
+            OR TRIM(CAST(start_date AS CHAR)) = ''
+          THEN 1
+          WHEN CAST(start_date AS DATE) <= CURDATE()
+          THEN 1
+          ELSE 0
+        END = 1
+        AND CASE
+          WHEN end_date IS NULL
+            OR TRIM(CAST(end_date AS CHAR)) = ''
+          THEN 1
+          WHEN CAST(end_date AS DATE) >= CURDATE()
+          THEN 1
+          ELSE 0
+        END = 1
       ORDER BY sort_order ASC, id ASC
     `);
+
     return res.json({ success: true, data: sliders });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    console.error('getSliders error:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 }
-
 /**
  * Admin: Get all sliders
  */

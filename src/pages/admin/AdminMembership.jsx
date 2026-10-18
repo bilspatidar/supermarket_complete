@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Award,
   Plus,
@@ -100,17 +101,23 @@ export default function AdminMembership() {
     const discountValue = Number(form.discount_percent);
 
     if (!cleanName) {
-      alert('Please enter a membership plan name.');
+      toast.error('Please enter a membership plan name.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!Number.isFinite(priceValue) || priceValue < 0) {
-      alert('Enter a valid price.');
+      toast.error('Enter a valid price.', {
+  duration: 2000,
+});
       return;
     }
 
     if (!Number.isInteger(durationValue) || durationValue < 1) {
-      alert('Duration must be at least 1 day.');
+      toast.error('Duration must be at least 1 day.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -119,7 +126,9 @@ export default function AdminMembership() {
       discountValue < 0 ||
       discountValue > 100
     ) {
-      alert('Discount must be between 0 and 100.');
+      toast.error('Discount must be between 0 and 100.', {
+  duration: 2000,
+});
       return;
     }
 
@@ -159,9 +168,11 @@ export default function AdminMembership() {
         );
       }
 
-      alert(
+      toast.success(
         res?.message ||
-          `Membership plan ${editingPlan ? 'updated' : 'created'} successfully.`
+          `Membership plan ${editingPlan ? 'updated' : 'created'} successfully.`, {
+  duration: 2000,
+}
       );
 
       setIsModalOpen(false);
@@ -170,7 +181,9 @@ export default function AdminMembership() {
 
       await loadPlans();
     } catch (err) {
-      alert(`Failed to save membership plan: ${err.message}`);
+      toast.error(`Failed to save membership plan: ${err.message}`, {
+  duration: 2000,
+});
     } finally {
       setSaving(false);
     }

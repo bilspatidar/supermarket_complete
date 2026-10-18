@@ -37,6 +37,7 @@ export default function AdminLayout({ activePage, onNavigate, children }) {
     { id: 'admin-products', label: 'Products', icon: Package, perm: 'products.view' },
     { id: 'admin-inventory', label: 'Inventory Ledger', icon: Layers, perm: 'inventory.view' },
     { id: 'admin-customers', label: 'Customers', icon: Users, perm: 'customers.view' },
+    { id: 'admin-membership-list', label: 'Membership List', icon: Users, perm: 'membership.view' },
     { id: 'admin-reviews', label: 'Reviews', icon: Users, perm: 'reviews.view' },
     { id: 'admin-contacts', label: 'Contacts', icon: CreditCard, perm: 'contacts.view' },
     { id: 'admin-delivery', label: 'Delivery Zones', icon: MapPin, perm: 'delivery.view' },

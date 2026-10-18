@@ -27,8 +27,10 @@ export async function getBonusLedger(req, res) {
     const availableBalance = Math.max(0, Number(credits?.total || 0) - Number(debits?.total || 0));
 
     // Fetch welcome bonus rules
-    const settings = await db.query("SELECT setting_key as  `key`, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'");
-    const rules = {};
+      const settings = await db.query(
+        "SELECT setting_key AS `key`, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'"
+      );    
+      const rules = {};
     settings.forEach(s => { rules[s.key] = s.value; });
 
     return res.json({

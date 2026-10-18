@@ -1,5 +1,21 @@
 import db from '../../database/connection.js';
 import { toMySQLDateTime } from '../../src/utils/dateTime.js';
+
+function settingIsEnabled(value, defaultValue = true) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return defaultValue;
+  }
+
+  return !['false', '0', 'no', 'off', 'disabled'].includes(
+    String(value).trim().toLowerCase()
+  );
+}
+
+function money(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round((number + Number.EPSILON) * 100) / 100 : 0;
+}
+
 class PricingService {
   /**
    * Single Centralized Pricing Engine for both Online and In-House POS orders
@@ -59,7 +75,11 @@ class PricingService {
       const originalPrice = Number(product.original_price);
       const lineSubtotal = appliedPrice * qty;
       const taxRate = Number(product.tax_percent || 0);
-      const lineTax = (lineSubtotal * taxRate) / 100;
+      // const lineTax = (lineSubtotal * taxRate) / 100;
+      // Selling price already includes GST
+      const lineTax = taxRate > 0
+        ? (lineSubtotal * taxRate) / (100 + taxRate)
+        : 0;
 
       subtotal += lineSubtotal;
       totalTax += lineTax;
@@ -196,6 +216,8 @@ class PricingService {
     // 4. Welcome Bonus Evaluation
     let bonusDiscount = 0;
     let availableBonus = 0;
+    let bonusEligible = false;
+    let bonusIneligibilityReason = null;
 
     if (userId) {
       // Calculate available unexpired promotional credit
@@ -219,28 +241,44 @@ class PricingService {
       if (useBonus && availableBonus > 0) {
         // Load store settings for bonus rules
         const bonusSettingsRows = await db.query(
-          "SELECT setting_key as key, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'"
+          "SELECT setting_key as `key`, value FROM store_settings WHERE setting_key LIKE 'welcome_bonus_%'"
         );
         const settings = {};
         for (const row of bonusSettingsRows) settings[row.key] = row.value;
 
-        const bonusEnabled = settings.welcome_bonus_enabled !== 'false';
-        const minOrder = Number(settings.welcome_bonus_min_order || 0);
-        const maxRedemption = Number(settings.welcome_bonus_max_redemption || availableBonus);
-        const allowCoupon = settings.welcome_bonus_allow_coupon !== 'false';
-        const allowMembership = settings.welcome_bonus_allow_membership !== 'false';
+        const bonusEnabled = settingIsEnabled(settings.welcome_bonus_enabled, true);
+        const minOrder = Math.max(0, Number(settings.welcome_bonus_min_order || 0));
+        const configuredMaxRedemption = Number(settings.welcome_bonus_max_redemption);
+        const maxRedemption =
+          Number.isFinite(configuredMaxRedemption) && configuredMaxRedemption > 0
+            ? configuredMaxRedemption
+            : availableBonus;
+        const allowCoupon = settingIsEnabled(settings.welcome_bonus_allow_coupon, true);
+        const allowMembership = settingIsEnabled(settings.welcome_bonus_allow_membership, true);
 
-        if (bonusEnabled) {
-          let eligible = true;
-          if (subtotal < minOrder) eligible = false;
-          if (couponDiscount > 0 && !allowCoupon) eligible = false;
-          if (membershipDiscount > 0 && !allowMembership) eligible = false;
-
-          if (eligible) {
-            const maxAllowed = Math.min(availableBonus, maxRedemption, subtotal - couponDiscount - membershipDiscount);
-            bonusDiscount = Math.max(0, Math.round(maxAllowed * 100) / 100);
-          }
+        if (!bonusEnabled) {
+          bonusIneligibilityReason = 'Welcome bonus redemption is currently disabled.';
+        } else if (subtotal < minOrder) {
+          bonusIneligibilityReason = `A minimum order of ₹${money(minOrder)} is required to redeem bonus credit.`;
+        } else if (couponDiscount > 0 && !allowCoupon) {
+          bonusIneligibilityReason = 'Bonus credit cannot be combined with a coupon on this order.';
+        } else if (membershipDiscount > 0 && !allowMembership) {
+          bonusIneligibilityReason = 'Bonus credit cannot be combined with a membership discount on this order.';
+        } else {
+          bonusEligible = true;
+          const remainingOrderValue = Math.max(
+            0,
+            subtotal - couponDiscount - membershipDiscount
+          );
+          const maxAllowed = Math.min(
+            availableBonus,
+            maxRedemption,
+            remainingOrderValue
+          );
+          bonusDiscount = money(Math.max(0, maxAllowed));
         }
+      } else if (useBonus) {
+        bonusIneligibilityReason = 'No available bonus credit to redeem.';
       }
     }
 
@@ -311,13 +349,15 @@ class PricingService {
       ) / 100
     );
     return {
-      subtotal,
-      tax: totalTax,
-      membership_discount: membershipDiscount,
-      coupon_discount: couponDiscount,
-      bonus_discount: bonusDiscount,
-      delivery_charge: deliveryCharge,
-      grand_total: grandTotal,
+      subtotal: money(subtotal),
+      tax: money(totalTax),
+      membership_discount: money(membershipDiscount),
+      coupon_discount: money(couponDiscount),
+      bonus_discount: money(bonusDiscount),
+      bonus_eligible: bonusEligible,
+      bonus_ineligibility_reason: bonusIneligibilityReason,
+      delivery_charge: money(deliveryCharge),
+      grand_total: money(grandTotal),
       items: validatedItems,
       applied_coupon: appliedCoupon ? { code: appliedCoupon.code, id: appliedCoupon.id, discount: couponDiscount } : null,
       active_membership: activeMembership ? { plan_name: activeMembership.plan_name, discount: membershipDiscount } : null,

@@ -109,6 +109,257 @@ export async function getMyMembership(req, res) {
   }
 }
 
+
+export async function getAdminMemberships(req, res) {
+  try {
+    const { userId, status } = req.query;
+
+    let sql = `
+      SELECT
+        cm.*,
+        u.name AS customer_name,
+        u.mobile AS customer_mobile,
+        u.email AS customer_email,
+        mp.name AS plan_name,
+        mp.price AS plan_price,
+        mp.discount_percent,
+        mp.free_delivery,
+        mp.benefits_json
+      FROM customer_memberships cm
+      INNER JOIN users u ON cm.user_id = u.id
+      INNER JOIN membership_plans mp ON cm.plan_id = mp.id
+      WHERE 1 = 1
+    `;
+
+    const params = [];
+
+    if (userId) {
+      sql += ` AND cm.user_id = ?`;
+      params.push(userId);
+    }
+
+    if (status) {
+      const allowedStatuses = [
+        'REQUESTED',
+        'ACTIVE',
+        'REJECTED',
+        'EXPIRED',
+      ];
+
+      const normalizedStatus = String(status).toUpperCase();
+
+      if (!allowedStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid membership status',
+        });
+      }
+
+      sql += ` AND UPPER(cm.status) = ?`;
+      params.push(normalizedStatus);
+    }
+
+    sql += `
+      ORDER BY
+        CASE
+          WHEN UPPER(cm.status) = 'REQUESTED' THEN 0
+          WHEN UPPER(cm.status) = 'ACTIVE' THEN 1
+          WHEN UPPER(cm.status) = 'REJECTED' THEN 2
+          ELSE 3
+        END ASC,
+        cm.id DESC
+    `;
+
+    // Use your MySQL wrapper's method for fetching multiple rows.
+    const memberships = await db.query(sql, params);
+    return res.json({
+      success: true,
+      data: memberships.map((membership) => {
+        let benefits = [];
+
+        if (membership.benefits_json) {
+          try {
+            benefits = JSON.parse(membership.benefits_json);
+          } catch {
+            benefits = [];
+          }
+        }
+
+        return {
+          ...membership,
+          benefits,
+        };
+      }),
+    });
+  } catch (err) {
+    console.error('getAdminMemberships error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load membership records',
+    });
+  }
+}
+
+
+export async function updateMembershipStatus(req, res) {
+  try {
+    const membershipId = Number(req.params.id);
+    const { status } = req.body;
+
+    if (!Number.isSafeInteger(membershipId) || membershipId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid membership ID',
+      });
+    }
+
+    const newStatus = String(status || '').toUpperCase();
+
+    if (!['ACTIVE', 'REJECTED'].includes(newStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be ACTIVE or REJECTED',
+      });
+    }
+
+    // Only pending membership requests can be approved or rejected.
+    const membership = await db.query(
+      `
+        SELECT
+          cm.id,
+          cm.user_id,
+          cm.plan_id,
+          cm.status,
+          mp.name AS plan_name,
+          mp.duration_days
+        FROM customer_memberships cm
+        INNER JOIN membership_plans mp ON mp.id = cm.plan_id
+        WHERE cm.id = ?
+        LIMIT 1
+      `,
+      [membershipId]
+    );
+
+    if (!membership.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Membership request not found',
+      });
+    }
+
+    const request = membership[0];
+
+    if (String(request.status).toUpperCase() !== 'REQUESTED') {
+      return res.status(409).json({
+        success: false,
+        message: 'Only pending membership requests can be updated',
+      });
+    }
+
+    let startDateSQL = null;
+    let endDateSQL = null;
+
+    if (newStatus === 'ACTIVE') {
+      const startDate = new Date();
+      const endDate = new Date(
+        startDate.getTime() +
+          Number(request.duration_days) * 24 * 60 * 60 * 1000
+      );
+
+      startDateSQL = toMySQLDateTime(startDate);
+      endDateSQL = toMySQLDateTime(endDate);
+    }
+
+    // Conditional update prevents approving/rejecting the same request twice.
+    const result = await db.query(
+      `
+        UPDATE customer_memberships
+        SET
+          status = ?,
+          start_date = CASE
+            WHEN ? = 'ACTIVE' THEN ?
+            ELSE start_date
+          END,
+          end_date = CASE
+            WHEN ? = 'ACTIVE' THEN ?
+            ELSE end_date
+          END
+        WHERE id = ?
+          AND UPPER(status) = 'REQUESTED'
+      `,
+      [
+        newStatus,
+        newStatus,
+        startDateSQL,
+        newStatus,
+        endDateSQL,
+        membershipId,
+      ]
+    );
+
+    // Adapt this check if your db.query wrapper returns a different
+    // structure for UPDATE statements.
+    if (!result.affectedRows) {
+      return res.status(409).json({
+        success: false,
+        message: 'This membership request has already been processed',
+      });
+    }
+
+    // Notify the customer after approval.
+    if (newStatus === 'ACTIVE') {
+      try {
+        const user = await db.query(
+          'SELECT id, name, mobile FROM users WHERE id = ? LIMIT 1',
+          [request.user_id]
+        );
+
+        if (user.length && user[0].mobile) {
+          Promise.resolve(
+            whatsAppService.send({
+              recipient: user[0].mobile,
+              templateKey: 'membership.activated',
+              variables: {
+                customer_name: user[0].name,
+                membership_name: request.plan_name,
+                expiry_date: new Date(endDateSQL.replace(' ', 'T'))
+                  .toLocaleDateString('en-IN'),
+              },
+              userId: user[0].id,
+            })
+          ).catch((err) => {
+            console.error(
+              'Membership activation notification failed:',
+              err
+            );
+          });
+        }
+      } catch (notificationError) {
+        console.error(
+          'Failed to prepare membership notification:',
+          notificationError
+        );
+      }
+    }
+
+    return res.json({
+      success: true,
+      message:
+        newStatus === 'ACTIVE'
+          ? 'Membership approved and activated successfully'
+          : 'Membership request rejected successfully',
+    });
+  } catch (err) {
+    console.error('updateMembershipStatus error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update membership status',
+    });
+  }
+}
+
 // SUBSCRIBE TO MEMBERSHIP PLAN
 export async function subscribePlan(req, res) {
   try {
@@ -139,6 +390,28 @@ export async function subscribePlan(req, res) {
       });
     }
 
+    // Prevent duplicate membership applications.
+const existingMembership = await db.get(
+  `
+    SELECT id, status
+    FROM customer_memberships
+    WHERE user_id = ?
+      AND UPPER(status) IN ('REQUESTED', 'ACTIVE')
+    LIMIT 1
+  `,
+  [req.user.id]
+);
+
+if (existingMembership) {
+  return res.status(409).json({
+    success: false,
+    message:
+      existingMembership.status.toUpperCase() === 'REQUESTED'
+        ? 'You already have a pending membership request. Please wait for admin approval.'
+        : 'You already have an active membership.',
+  });
+}
+
     const startDate = new Date();
 
     const endDate = new Date(
@@ -155,46 +428,46 @@ export async function subscribePlan(req, res) {
           end_date,
           status
         )
-        VALUES (?, ?, ?, ?, 'ACTIVE')
+        VALUES (?, ?, ?, ?, 'REQUESTED')
       `,
       [
         req.user.id,
         plan.id,
-        startDate.toISOString(),
-        endDate.toISOString(),
+        toMySQLDateTime(startDate),
+        toMySQLDateTime(endDate),
       ]
     );
 
     // Send WhatsApp notification
-    try {
-      const user = await db.get(
-        'SELECT name, mobile FROM users WHERE id = ?',
-        [req.user.id]
-      );
+    // try {
+    //   const user = await db.get(
+    //     'SELECT name, mobile FROM users WHERE id = ?',
+    //     [req.user.id]
+    //   );
 
-      if (user) {
-        // Preserve the existing notification behavior.
-        Promise.resolve(
-          whatsAppService.send({
-            recipient: user.mobile,
-            templateKey: 'membership.activated',
-            variables: {
-              customer_name: user.name,
-              membership_name: plan.name,
-              expiry_date: endDate.toLocaleDateString(),
-            },
-            userId: user.id,
-          })
-        ).catch((err) => {
-          console.error('Membership WhatsApp notification failed:', err);
-        });
-      }
-    } catch (notificationError) {
-      console.error(
-        'Failed to prepare membership notification:',
-        notificationError
-      );
-    }
+    //   if (user) {
+    //     // Preserve the existing notification behavior.
+    //     Promise.resolve(
+    //       whatsAppService.send({
+    //         recipient: user.mobile,
+    //         templateKey: 'membership.activated',
+    //         variables: {
+    //           customer_name: user.name,
+    //           membership_name: plan.name,
+    //           expiry_date: endDate.toLocaleDateString(),
+    //         },
+    //         userId: user.id,
+    //       })
+    //     ).catch((err) => {
+    //       console.error('Membership WhatsApp notification failed:', err);
+    //     });
+    //   }
+    // } catch (notificationError) {
+    //   console.error(
+    //     'Failed to prepare membership notification:',
+    //     notificationError
+    //   );
+    // }
 
     const created = await db.get(
       'SELECT * FROM customer_memberships WHERE id = ?',
@@ -203,7 +476,7 @@ export async function subscribePlan(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: `Subscribed to ${plan.name} successfully!`,
+      message: `Request to ${plan.name} successfully!`,
       data: created,
     });
   } catch (err) {
@@ -448,8 +721,8 @@ function validatePlan({
     return 'Discount must be between 0 and 100';
   }
 
-  if (!['ACTIVE', 'INACTIVE'].includes(status)) {
-    return 'Status must be ACTIVE or INACTIVE';
+  if (!['ACTIVE', 'INACTIVE', 'REQUESTED'].includes(status)) {
+    return 'Status must be ACTIVE or INACTIVE or REQUESTED';
   }
 
   if (!Array.isArray(benefits)) {
@@ -466,4 +739,6 @@ export default {
   subscribePlan,
   createPlan,
   updatePlan,
+  getAdminMemberships,
+  updateMembershipStatus
 };
