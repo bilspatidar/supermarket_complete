@@ -35,7 +35,7 @@ export function CartProvider({ children }) {
     }
   }
 
-  async function addToCart(productId, quantity = 1) {
+  async function addToCartOpenDrwaser(productId, quantity = 1) {
     try {
       const res = await client.post('/cart/add', { productId, quantity });
       if (res.success && res.data) {
@@ -52,6 +52,31 @@ export function CartProvider({ children }) {
       throw err;
     }
   }
+
+
+async function addToCart(productId, quantity = 1) {
+  try {
+    const res = await client.post('/cart/add', {
+      productId,
+      quantity,
+    });
+
+    if (res.success && res.data) {
+      setItems(res.data.items || []);
+      setSubtotal(res.data.subtotal || 0);
+      setCount(res.data.count || 0);
+
+      // Do not open the drawer automatically.
+      return res.data;
+    }
+  } catch (err) {
+    toast.error(err.message, {
+      duration: 2000,
+    });
+    throw err;
+  }
+}
+
 
   async function updateQuantity(productId, quantity) {
     try {

@@ -78,6 +78,63 @@ export async function register(req, res) {
   }
 }
 
+
+
+export async function createAccountDeleteRequest(req, res) {
+  try {
+    const userId = req.user?.id;
+    const mobile = req.user?.mobile;
+
+    if (!userId || !mobile) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please log in to submit this request.',
+      });
+    }
+
+    const rawReason = req.body?.reason;
+
+    if (
+      rawReason !== undefined &&
+      rawReason !== null &&
+      typeof rawReason !== 'string'
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid deletion reason.',
+      });
+    }
+
+    const reason = rawReason?.trim() || null;
+
+    if (reason && reason.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reason cannot exceed 1000 characters.',
+      });
+    }
+
+    const result = await authService.createAccountDeleteRequest(
+      userId,
+      mobile,
+      reason
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Your account deletion request has been submitted successfully.',
+      data: result,
+    });
+  } catch (err) {
+    const statusCode = err.statusCode || 400;
+
+    return res.status(statusCode).json({
+      success: false,
+      message: err.message || 'Unable to submit your request. Please try again.',
+    });
+  }
+}
+
 export async function getMe(req, res) {
   try {
     const meta = await authService.getUserRolesAndPermissions(req.user.id);
@@ -162,7 +219,99 @@ export async function adminCorrectPersonalData(req, res) {
   }
 }
 
+export async function getAccountDeletionRequests(req, res) {
+  try {
+    const { status = 'ALL', search = '' } = req.query;
+
+    const requests = await authService.getAccountDeletionRequests({
+      status,
+      search: typeof search === 'string' ? search.trim() : '',
+    });
+
+    return res.json({
+      success: true,
+      data: requests
+    });
+  } catch (err) {
+    console.error('getAccountDeletionRequests error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to load account deletion requests.',
+    });
+  }
+}
+
+export async function updateAccountDeletionRequest(req, res) {
+  try {
+    const requestId = Number(req.params.id);
+    const { status, adminNotes } = req.body;
+
+    if (!Number.isSafeInteger(requestId) || requestId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid account deletion request ID.',
+      });
+    }
+
+    const allowedStatuses = [
+      'PENDING',
+      'UNDER_REVIEW',
+      'APPROVED',
+      'REJECTED',
+      'COMPLETED',
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid account deletion request status.',
+      });
+    }
+
+    if (
+      adminNotes !== undefined &&
+      adminNotes !== null &&
+      typeof adminNotes !== 'string'
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin notes must be text.',
+      });
+    }
+
+    if (typeof adminNotes === 'string' && adminNotes.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin notes cannot exceed 5000 characters.',
+      });
+    }
+
+    const result = await authService.updateAccountDeletionRequest(
+      requestId,
+      status,
+      adminNotes
+    );
+
+    return res.json({
+      success: true,
+      message: 'Account deletion request updated successfully.',
+      data: result,
+    });
+  } catch (err) {
+    console.error('updateAccountDeletionRequest:', err);
+
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'Unable to update account deletion request.',
+    });
+  }
+}
+
+
 export default {
+  getAccountDeletionRequests,
+  updateAccountDeletionRequest,
   login,
   requestOtp,
   verifyOtp,
@@ -171,4 +320,5 @@ export default {
   updateProfile,
   adminCorrectPersonalData,
   updatePassword,
+  createAccountDeleteRequest
 };
