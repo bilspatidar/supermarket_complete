@@ -957,6 +957,7 @@ if (
                 </div>
               </button>
 
+           {razorpayEnabled && (
               <button
                 type="button"
                 onClick={() => setPaymentMethod('RAZORPAY')}
@@ -969,9 +970,13 @@ if (
                 <CreditCard className="w-5 h-5 text-indigo-600" />
                 <div>
                   <div>Razorpay Online</div>
-                  <div className="text-[10px] text-slate-500 font-normal">UPI, Cards, NetBanking</div>
+                  <div className="text-[10px] text-slate-500 font-normal">
+                    UPI, Cards, NetBanking
+                  </div>
                 </div>
               </button>
+            )}
+
             </div>
           </div>
             {/* Place Order CTA */}

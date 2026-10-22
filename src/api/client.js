@@ -2,7 +2,11 @@
  * Centralized API Client
  */
 
-const API_BASE = '/api';
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || '/api'
+).replace(/\/+$/, '');
+
 
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('freshmart_token');
