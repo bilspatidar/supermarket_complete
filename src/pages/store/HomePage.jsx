@@ -302,7 +302,7 @@ export default function HomePage({ onNavigate }) {
               Swastik VIP Club
             </span>
             <h3 className="text-2xl sm:text-3xl font-black">
-              Unlock Prime Membership Benifits
+              Unlock Prime Membership Benifit
             </h3>
             <p className="text-xs sm:text-sm text-amber-100">
               Join Swastik VIP plans. Stack discounts on top of coupons and promotional welcome bonus!

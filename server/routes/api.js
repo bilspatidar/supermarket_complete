@@ -42,6 +42,7 @@ router.post('/auth/otp/verify', authController.verifyOtp);
 router.post('/auth/register', authController.register);
 router.get('/auth/me', authenticate, authController.getMe);
 router.put('/auth/profile', authenticate, requireCustomer, authController.updateProfile);
+router.post('/auth/account-delete-request', authenticate, requireCustomer, authController.createAccountDeleteRequest);
 router.put('/auth/change-password', authenticate, requireCustomer, authController.updatePassword);
 router.put('/auth/change-admin-password', authenticate,requireInternal, authController.updatePassword);
 router.post(
@@ -50,6 +51,20 @@ router.post(
   requireInternal,
   requirePermission('customers.correct_personal_data'),
   authController.adminCorrectPersonalData
+);
+
+router.get(
+  '/auth/admin/account-deletion-requests',
+  authenticate,
+  requireInternal,
+   authController.getAccountDeletionRequests
+);
+
+router.put(
+  '/auth/admin/account-deletion-requests/:id',
+  authenticate,
+  requireInternal,
+  authController.updateAccountDeletionRequest
 );
 
 // -------------------------------------------------------------

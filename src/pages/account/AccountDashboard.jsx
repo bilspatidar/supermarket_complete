@@ -18,7 +18,63 @@ export default function AccountDashboard({ onNavigate }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [assignDeliveryStaffId, setAssignDeliveryStaffId] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
-  
+
+
+   const [showDeletionModal, setShowDeletionModal] = useState(false);
+   const [deletionReason, setDeletionReason] = useState('');
+   const [deletionLoading, setDeletionLoading] = useState(false);
+   const [deletionMessage, setDeletionMessage] = useState('');
+   const [deletionError, setDeletionError] = useState('');
+
+
+   
+
+async function handleDeletionRequest() {
+  if (deletionLoading) return;
+
+  setDeletionLoading(true);
+  setDeletionError('');
+
+  try {
+    const response = await client.post('/auth/account-delete-request', {
+      reason: deletionReason.trim() || null,
+    });
+
+    toast.success(
+      response.data?.message ||
+        'Your account deletion request has been submitted successfully.',
+      { duration: 3000 }
+    );
+
+    setShowDeletionModal(false);
+    setDeletionReason('');
+  } catch (error) {
+  const responseData = error?.response?.data;
+  const status = error?.response?.status;
+  const message = responseData?.message;
+
+  if (
+    status === 409 ||
+    message === 'You already have an active account deletion request.'
+  ) {
+    toast.error(
+      'You already have an active account deletion request. Our team will review it; you do not need to submit another one.',
+      { duration: 4000 }
+    );
+
+    setShowDeletionModal(false);
+    setDeletionReason('');
+  } else {
+    toast.error(
+      message || 'You already have an active account deletion request.',
+      { duration: 3000 }
+    );
+  }
+} finally {
+  setDeletionLoading(false);
+}
+}
+
   
   
 
@@ -444,143 +500,457 @@ async function handleUpdateProfile(e) {
       )}
 
       {/* 2. PROFILE & LOCKED DOB/ANNIVERSARY TAB */}
-      {activeTab === 'profile' && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs max-w-2xl space-y-6">
+ 
+{activeTab === 'profile' && (
+  <div className="w-full max-w-2xl mx-auto">
+    <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+      {/* Profile Header */}
+      <div className="border-b border-slate-100 p-4 sm:p-6 lg:p-8">
+        <h2 className="text-lg sm:text-xl font-black text-slate-900">
+          Personal Profile &amp; Locked Dates
+        </h2>
+        <p className="mt-1.5 text-xs sm:text-sm leading-5 text-slate-500">
+          DOB and anniversary are protected to help maintain accurate
+          birthday and anniversary promotions.
+        </p>
+      </div>
+
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+
+        {/* Profile Messages */}
+        {profileMsg && (
+          <div
+            role="status"
+            className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs sm:text-sm font-semibold text-emerald-800"
+          >
+            {profileMsg}
+          </div>
+        )}
+
+        {profileError && (
+          <div
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs sm:text-sm font-semibold text-rose-800"
+          >
+            {profileError}
+          </div>
+        )}
+
+        {/* Profile Form */}
+        <form
+          onSubmit={handleUpdateProfile}
+          className="space-y-5"
+        >
+          {/* Full Name */}
           <div>
-            <h2 className="text-lg font-black text-slate-900">Personal Profile &amp; Locked Dates</h2>
-            <p className="text-xs text-slate-500">
-              DOB and Anniversary are set once to ensure tamper-proof birthday &amp; anniversary promotions.
-            </p>
+            <label className="mb-1.5 block text-xs sm:text-sm font-bold text-slate-700">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoComplete="name"
+              className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
           </div>
 
-          {profileMsg && <div className="p-3 bg-emerald-50 text-emerald-900 text-xs rounded-xl font-bold">{profileMsg}</div>}
-          {profileError && <div className="p-3 bg-rose-50 text-rose-900 text-xs rounded-xl font-bold">{profileError}</div>}
-
-          <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 text-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Mobile Number (Primary Identifier)</label>
-              <input
-                type="text"
-                value={user?.mobile}
-                disabled
-                className="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-mono cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="optional"
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 text-slate-900"
-              />
-            </div>
-
-            {/* LOCKED DOB DISPLAY (Section 5 Requirement) */}
-            <div className="pt-3 border-t border-slate-100 space-y-3">
-              <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] block">
-                Security-Protected Celebration Dates
+          {/* Mobile Number */}
+          <div>
+            <label className="mb-1.5 block text-xs sm:text-sm font-bold text-slate-700">
+              Mobile Number
+              <span className="ml-1 font-normal text-slate-400">
+                (Primary identifier)
               </span>
+            </label>
+            <input
+              type="text"
+              value={user?.mobile || ''}
+              disabled
+              className="w-full min-w-0 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-3 text-sm font-mono text-slate-500"
+            />
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                
-                
-{/* DOB */}
-{/* DOB */}
-<div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-  <label className="font-semibold text-[11px] flex items-center gap-1">
-    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-    Date of Birth
-  </label>
-  {user?.dob ? (
-    <>
-      <div className="text-sm font-black text-slate-900">
-        {formatDate(String(user.dob).slice(0, 10))}
-      </div>
-      <p className="text-[10px] text-amber-700 flex items-center gap-1">
-        <Lock className="w-3 h-3" />
-        Date of birth cannot be changed once saved
-      </p>
-    </>
-  ) : (
-    <>
-      <input
-        type="date"
-        value={dob ? String(dob).slice(0, 10) : ''}
-        max={new Date().toISOString().slice(0, 10)}
-        onChange={(e) => setDob(e.target.value)}
-        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
-      />
-      <p className="text-[10px] text-slate-500">
-        You can set your date of birth only once.
-      </p>
-    </>
-  )}
-</div>
+          {/* Email */}
+          <div>
+            <label className="mb-1.5 block text-xs sm:text-sm font-bold text-slate-700">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email (optional)"
+              autoComplete="email"
+              className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </div>
 
-{/* Anniversary */}
-<div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-  <label className="font-semibold text-[11px] flex items-center gap-1">
-    <Calendar className="w-3.5 h-3.5 text-pink-600" />
-    Anniversary Date
-  </label>
-
-  {user.anniversary_date ? (
-    <>
-      <div className="text-sm font-black text-slate-900">
-        {formatDate(user.anniversary_date)}
-      </div>
-      <p className="text-[10px] text-amber-700 flex items-center gap-1">
-        <Lock className="w-3 h-3" />
-        Anniversary date cannot be changed once saved
-      </p>
-    </>
-  ) : (
-    <>
-      <input
-        type="date"
-        value={anniversaryDate}
-        onChange={(e) => setAnniversaryDate(e.target.value)}
-        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl"
-      />
-      <p className="text-[10px] text-slate-500">
-        You can set your anniversary date only once.
-      </p>
-    </>
-  )}
-</div>
-
-
-              </div>
+          {/* Protected Dates */}
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <div>
+              <h3 className="text-xs sm:text-sm font-black uppercase tracking-wide text-slate-800">
+                Security-Protected Celebration Dates
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Dates can be saved once and cannot subsequently be changed here.
+              </p>
             </div>
 
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+              {/* Date of Birth */}
+              <div className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <Calendar className="h-4 w-4 shrink-0 text-emerald-600" />
+                  Date of Birth
+                </label>
+
+                {user?.dob ? (
+                  <>
+                    <p className="break-words text-base sm:text-lg font-black text-slate-900">
+                      {formatDate(String(user.dob).slice(0, 10))}
+                    </p>
+                    <p className="flex items-start gap-1.5 text-[11px] leading-4 text-amber-700">
+                      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Cannot be changed once saved.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="date"
+                      value={dob ? String(dob).slice(0, 10) : ''}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setDob(e.target.value)}
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+                    />
+                    <p className="text-[11px] leading-4 text-slate-500">
+                      You can set your date of birth only once.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Anniversary */}
+              <div className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <Calendar className="h-4 w-4 shrink-0 text-pink-600" />
+                  Anniversary Date
+                </label>
+
+                {user?.anniversary_date ? (
+                  <>
+                    <p className="break-words text-base sm:text-lg font-black text-slate-900">
+                      {formatDate(String(user.anniversary_date).slice(0, 10))}
+                    </p>
+                    <p className="flex items-start gap-1.5 text-[11px] leading-4 text-amber-700">
+                      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Cannot be changed once saved.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="date"
+                      value={
+                        anniversaryDate
+                          ? String(anniversaryDate).slice(0, 10)
+                          : ''
+                      }
+                      onChange={(e) => setAnniversaryDate(e.target.value)}
+                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+                    />
+                    <p className="text-[11px] leading-4 text-slate-500">
+                      You can set your anniversary date only once.
+                    </p>
+                  </>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Save Profile */}
+          <div className="border-t border-slate-100 pt-5">
             <button
               type="submit"
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:w-auto"
             >
               Save Profile Changes
             </button>
-          </form>
+          </div>
+        </form>
 
+        {/* Account Deletion Section */}
+        <section className="space-y-4 border-t border-rose-100 pt-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 6h18M9 6V4h6v2m-9 0 1 14h10l1-14M10 10v6m4-6v6"
+                />
+              </svg>
+            </div>
 
-        
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-black text-slate-900">
+                Account Deletion
+              </h3>
+              <p className="mt-1 text-xs sm:text-sm leading-5 text-slate-500">
+                Request deletion of your account and associated personal
+                information. Our administration team will review your request.
+              </p>
+            </div>
+          </div>
 
+          {deletionMessage && (
+            <div
+              role="status"
+              className="break-words rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs sm:text-sm font-semibold text-emerald-800"
+            >
+              {deletionMessage}
+            </div>
+          )}
 
+          {deletionError && (
+            <div
+              role="alert"
+              className="break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs sm:text-sm font-semibold text-rose-800"
+            >
+              {deletionError}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setDeletionError('');
+              setShowDeletionModal(true);
+            }}
+            className="w-full rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 sm:w-auto"
+          >
+            Request Account Deletion
+          </button>
+        </section>
+      </div>
+    </div>
+
+    {/* Deletion Confirmation Modal */}
+    {showDeletionModal && (
+      <div
+        className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        onClick={(e) => {
+          if (
+            e.target === e.currentTarget &&
+            !deletionLoading
+          ) {
+            setShowDeletionModal(false);
+          }
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deletion-modal-title"
+          aria-describedby="deletion-modal-description"
+          className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[85dvh] sm:rounded-2xl"
+        >
+          {/* Modal Header */}
+          <div className="flex items-start gap-3 border-b border-slate-100 p-4 sm:p-6">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v4m0 4h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z"
+                />
+              </svg>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h2
+                id="deletion-modal-title"
+                className="text-base sm:text-lg font-black text-slate-900"
+              >
+                Request Account Deletion
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm leading-5 text-slate-500">
+                Please review the information before confirming.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              aria-label="Close dialog"
+              disabled={deletionLoading}
+              onClick={() => setShowDeletionModal(false)}
+              className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m18 6-12 12M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Scrollable Modal Content */}
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6">
+            <div
+              id="deletion-modal-description"
+              className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
+            >
+              <p className="text-xs sm:text-sm font-bold text-amber-900">
+                What happens next?
+              </p>
+
+              <ul className="mt-3 list-disc space-y-2 pl-4 text-xs sm:text-sm leading-5 text-amber-900/80">
+                <li>
+                  Your request will be sent to our administration team.
+                </li>
+                <li>
+                  Your account will not be deleted immediately.
+                </li>
+                
+                <li>
+                  Your account will be deleted within 24 hours of submitting your request.
+                </li>
+
+                <li>
+                  The team will review your request and any applicable legal
+                  or transaction-record retention requirements.
+                </li>
+                <li>
+                  Once deletion is completed, you may lose access to account
+                  history, rewards, and other account features.
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <label
+                htmlFor="deletion-reason"
+                className="mb-2 block text-xs sm:text-sm font-bold text-slate-700"
+              >
+                Reason for deletion
+                <span className="ml-1 font-normal text-slate-400">
+                  (Optional)
+                </span>
+              </label>
+
+              <textarea
+                id="deletion-reason"
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                maxLength={1000}
+                rows={4}
+                placeholder="Share your reason, if you wish..."
+                disabled={deletionLoading}
+                className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-5 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 disabled:bg-slate-50 disabled:opacity-60"
+              />
+
+              <p className="mt-1 text-right text-[11px] text-slate-400">
+                {deletionReason.length}/1000
+              </p>
+            </div>
+
+            <p className="text-xs leading-5 text-slate-500">
+              Confirming submits a deletion request for review. It does not
+              immediately delete your account.
+            </p>
+
+            {deletionError && (
+              <div
+                role="alert"
+                className="break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs sm:text-sm font-semibold text-rose-800"
+              >
+                {deletionError}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="border-t border-slate-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={deletionLoading}
+                onClick={() => setShowDeletionModal(false)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deletionLoading}
+                onClick={handleDeletionRequest}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {deletionLoading && (
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      className="opacity-25"
+                    />
+                    <path
+                      d="M21 12a9 9 0 0 0-9-9"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      className="opacity-90"
+                    />
+                  </svg>
+                )}
+
+                {deletionLoading
+                  ? 'Submitting Request...'
+                  : 'Confirm Deletion Request'}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+    )}
+  </div>
+)}
  {activeTab === 'password' && (
 
 <div className="bg-white rounded-3xl p-6 border border-slate-200 space-y-4">

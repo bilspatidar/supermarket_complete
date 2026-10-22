@@ -343,6 +343,7 @@ if (setting && String(setting.value).toLowerCase() !== 'true') {
   }
 }
 
+
   /**
    * Authenticate via Mobile + Password
    */
@@ -644,6 +645,235 @@ async updateCustomerPassword(userId, { currentPassword, newPassword }) {
       ? 'Password changed successfully'
       : 'Password set successfully'
   };
+}
+
+
+async getAccountDeletionRequests({ status = 'ALL', search = '' } = {}) {
+  let sql = `
+    SELECT
+      id,
+      user_id,
+      name,
+      mobile,
+      reason,
+      status,
+      admin_notes,
+      requested_at,
+      reviewed_at,
+      completed_at,
+      updated_at
+    FROM account_deletion_requests
+    WHERE 1 = 1
+  `;
+
+  const params = [];
+
+  if (status !== 'ALL') {
+    sql += ' AND status = ?';
+    params.push(status);
+  }
+
+  if (search) {
+    sql += ' AND (name LIKE ? OR mobile LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  sql += `
+    ORDER BY requested_at DESC
+  `;
+
+  const [rows] = await db.query(sql, params);
+  return rows;
+}
+
+
+async updateAccountDeletionRequest(requestId, status, adminNotes) {
+  const existing = await db.get(
+    `SELECT id, user_id, status, admin_notes
+     FROM account_deletion_requests
+     WHERE id = ?
+     LIMIT 1`,
+    [requestId]
+  );
+
+  if (!existing) {
+    const error = new Error('Account deletion request not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (existing.status === 'COMPLETED') {
+    const error = new Error('Account deletion is already completed.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const allowedStatuses = [
+    'PENDING',
+    'UNDER_REVIEW',
+    'APPROVED',
+    'REJECTED',
+  ];
+
+  if (!allowedStatuses.includes(status)) {
+    const error = new Error('Invalid status for this operation.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const finalNotes =
+    adminNotes === undefined
+      ? existing.admin_notes
+      : (adminNotes?.trim() || null);
+
+  if (status === 'APPROVED') {
+    const userId = existing.user_id;
+
+    if (!userId) {
+      const error = new Error(
+        'No user is linked to this deletion request.'
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const user = await db.get(
+      'SELECT id FROM users WHERE id = ? LIMIT 1',
+      [userId]
+    );
+
+    if (user) {
+      // Remove customer addresses.
+      await db.run(
+        'DELETE FROM customer_addresses WHERE user_id = ?',
+        [userId]
+      );
+
+      // Remove checkout sessions associated with this customer.
+      // Verify that no payment reconciliation data needs retention.
+      await db.run(
+        `DELETE FROM checkout_sessions
+         WHERE user_id = ?
+           AND payment_status = 'PENDING'
+           AND order_id IS NULL`,
+        [userId]
+      );
+
+      // Delete the user. This requires all blocking foreign keys
+      // to have been handled appropriately in the database schema.
+      await db.run(
+        'DELETE FROM users WHERE id = ?',
+        [userId]
+      );
+    }
+
+    // Mark completed only after deletion succeeds.
+    await db.run(
+      `UPDATE account_deletion_requests
+       SET status = 'COMPLETED',
+           admin_notes = ?,
+           reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP),
+           completed_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [finalNotes, requestId]
+    );
+  } else {
+    await db.run(
+      `UPDATE account_deletion_requests
+       SET status = ?,
+           admin_notes = ?,
+           reviewed_at = CASE
+             WHEN ? IN ('UNDER_REVIEW', 'REJECTED')
+             THEN COALESCE(reviewed_at, CURRENT_TIMESTAMP)
+             ELSE reviewed_at
+           END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [status, finalNotes, status, requestId]
+    );
+  }
+
+  return await db.get(
+    `SELECT
+       id, user_id, name, mobile, reason, status,
+       admin_notes, requested_at, reviewed_at,
+       completed_at, updated_at
+     FROM account_deletion_requests
+     WHERE id = ?
+     LIMIT 1`,
+    [requestId]
+  );
+}
+
+
+
+
+
+async createAccountDeleteRequest(userId, mobile, reason) {
+  // Fetch customer from MySQL-backed users table.
+  const user = await db.get(
+    `SELECT id, name, mobile
+     FROM users
+     WHERE id = ?
+       AND account_type = 'CUSTOMER'`,
+    [userId]
+  );
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Check for an existing active deletion request.
+  const existing = await db.get(
+    `SELECT id
+     FROM account_deletion_requests
+     WHERE user_id = ?
+       AND status IN ('PENDING', 'UNDER_REVIEW', 'APPROVED')
+     LIMIT 1`,
+    [userId]
+  );
+
+  if (existing) {
+    const error = new Error(
+      'You already have an active account deletion request.'
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  // Validate and normalize the reason.
+  const finalReason =
+    typeof reason === 'string' && reason.trim()
+      ? reason.trim()
+      : null;
+
+  if (finalReason && finalReason.length > 1000) {
+    throw new Error(
+      'Reason cannot exceed 1000 characters.'
+    );
+  }
+
+  // Create the deletion request.
+  const result = await db.run(
+    `INSERT INTO account_deletion_requests
+       (user_id, name, mobile, reason, status)
+     VALUES (?, ?, ?, ?, 'PENDING')`,
+    [
+      user.id,
+      user.name,
+      user.mobile || mobile,
+      finalReason,
+    ]
+  );
+
+  // Return the saved request.
+  return await db.get(
+    `SELECT *
+     FROM account_deletion_requests
+     WHERE id = ?`,
+    [result.lastID ?? result.insertId]
+  );
 }
   /**
    * Admin / Staff DOB & Anniversary Correction with Mandatory Audit Log
