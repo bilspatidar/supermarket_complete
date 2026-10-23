@@ -34,7 +34,7 @@ class CartService {
     const items = await db.query(
       `SELECT ci.id as cart_item_id, ci.product_id, ci.quantity,
               p.product_code, p.name, p.slug, p.selling_price, p.original_price,
-              p.tax_percent, p.unit, p.stock, p.image, p.status
+              p.tax_percent, p.unit, p.stock, p.image, p.status,p.is_image
        FROM cart_items ci
        JOIN products p ON ci.product_id = p.id
        WHERE ci.cart_id = ?`,
