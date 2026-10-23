@@ -712,7 +712,7 @@ if (
                     type="text"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="Near Apollo Hospital"
+                    placeholder="Near School"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 text-slate-900"
                   />
                 </div>
@@ -957,6 +957,7 @@ if (
                 </div>
               </button>
 
+           {razorpayEnabled && (
               <button
                 type="button"
                 onClick={() => setPaymentMethod('RAZORPAY')}
@@ -969,9 +970,13 @@ if (
                 <CreditCard className="w-5 h-5 text-indigo-600" />
                 <div>
                   <div>Razorpay Online</div>
-                  <div className="text-[10px] text-slate-500 font-normal">UPI, Cards, NetBanking</div>
+                  <div className="text-[10px] text-slate-500 font-normal">
+                    UPI, Cards, NetBanking
+                  </div>
                 </div>
               </button>
+            )}
+
             </div>
           </div>
             {/* Place Order CTA */}

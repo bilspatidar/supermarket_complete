@@ -26,7 +26,8 @@
       ]
     }
   },
-  "account_delete_information": {
+
+"account_delete_information": {
   "template_name": "account_delete_information",
   "language": "en",
   "body": "Hello {{customer_name}}, your account deletion request with {{store_name}} has been completed successfully. Your account login has been deactivated, and your personal account information has been deleted or anonymized where applicable. Certain order, invoice, or transaction records may be retained where required by law. Thank you for being with us.",

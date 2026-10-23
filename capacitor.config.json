@@ -1,6 +1,7 @@
+
 {
-  "appId": "com.freshmart.supermarket",
-  "appName": "FreshMart Supermarket",
+  "appId": "com.sparkhub.swastiksupermarket",
+  "appName": "Swastik Supermarket",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
@@ -9,10 +10,25 @@
   },
   "plugins": {
     "Geolocation": {
-      "permissions": ["location"]
+      "permissions": [
+        "location"
+      ]
     },
     "SpeechRecognition": {
       "language": "en-IN"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 250,
+      "backgroundColor": "#411E0C",
+      "showSpinner": false,
+      "splashFullScreen": false,
+      "splashImmersive": false
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK"
     }
   }
 }

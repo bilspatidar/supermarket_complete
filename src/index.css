@@ -1,115 +1,162 @@
 
 @import "tailwindcss";
 
-/* Global sizing */
+/* ========================================
+   Global sizing and viewport safety
+======================================== */
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
 html {
   width: 100%;
   min-height: 100%;
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
 }
 
 body {
   width: 100%;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100%;
   margin: 0;
   overflow-x: clip;
-  background: #f8fafc;
-  color: #0f172a;
-  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
   width: 100%;
-  min-height: 100vh;
   min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-/* Prevent flex/grid children from forcing horizontal overflow */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* Let nested flex and grid children shrink */
 main,
 section,
 article,
-aside,
 header,
 footer,
 nav,
-.flex,
-.grid {
+form {
   min-width: 0;
 }
 
-/* Responsive media */
-img,
-video,
-canvas,
-svg {
-  max-width: 100%;
-}
+/* ========================================
+   Form controls
+======================================== */
 
-img,
-video {
-  height: auto;
-}
-
-/* Long content and tables */
-p,
-a,
-h1,
-h2,
-h3,
-td,
-th {
-  overflow-wrap: anywhere;
-}
-
-pre,
-code {
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.table-responsive {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.table-responsive table {
-  min-width: 600px;
-}
-
-/* Inputs should not overflow their containers */
 input,
 select,
 textarea,
 button {
-  max-width: 100%;
   font: inherit;
 }
 
 input,
 select,
 textarea {
-  min-width: 0;
+  max-width: 100%;
+  font-size: 16px;
 }
 
-/* Comfortable touch targets on touch devices */
-@media (pointer: coarse) {
-  button,
-  [role="button"] {
-    touch-action: manipulation;
+/* ========================================
+   Safe-area utilities
+======================================== */
+
+/* Shared application shell */
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Shared app header: use on the outer header wrapper */
+.app-header {
+  padding-top: var(--safe-area-top);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+}
+
+/* Page content, if it needs safe-area spacing */
+.safe-area-top {
+  padding-top: var(--safe-area-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.safe-area-inset {
+  padding-top: var(--safe-area-top);
+  padding-right: var(--safe-area-right);
+  padding-bottom: var(--safe-area-bottom);
+  padding-left: var(--safe-area-left);
+}
+
+/* Fixed bottom navigation or action bars */
+.app-bottom-nav {
+  padding-bottom: var(--safe-area-bottom);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+}
+
+/* ========================================
+   Mobile storefront
+======================================== */
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    font-size: 14px;
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  img {
+    height: auto;
+  }
+
+  /* Prevent long text from forcing a wider layout */
+  h1,
+  h2,
+  h3,
+  p,
+  span {
+    overflow-wrap: anywhere;
+  }
+
+  /* Tables can scroll inside their own container */
+  table {
+    max-width: 100%;
   }
 }
 
-/* Respect users who prefer reduced motion */
+/* ========================================
+   Reduced motion accessibility
+======================================== */
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -76,42 +76,49 @@ export default function ProductCard({ product, onSelect }) {
           )}
         </div>
 
-        {/* Pricing & Cart Action */}
+               {/* Pricing & Cart Action */}
         <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-base sm:text-lg font-black text-slate-900">
+          {/* Price: allowed to shrink on narrow mobile cards */}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+              <span className="text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
                 ₹{product.selling_price}
               </span>
-              {product.original_price > product.selling_price && (
-                <span className="text-xs text-slate-400 line-through">
+
+           
+            </div>
+
+            <span className="text-[10px] text-slate-400 block leading-tight">
+                 {product.original_price > product.selling_price && (
+                <span className="text-xs text-slate-400 line-through whitespace-nowrap">
                   ₹{product.original_price}
                 </span>
               )}
-            </div>
-            <span className="text-[10px] text-slate-400 block leading-none">
-              Incl. all taxes
             </span>
           </div>
 
-          {/* Add to Cart or Stepper */}
+          {/* Add to Cart or Quantity Stepper */}
           {currentQty > 0 ? (
-            <div className="flex items-center bg-emerald-600 text-white rounded-xl shadow-xs overflow-hidden">
+            <div className="flex shrink-0 items-center bg-emerald-600 text-white rounded-xl shadow-xs overflow-hidden">
               <button
                 type="button"
+                aria-label={`Decrease ${product.name} quantity`}
                 onClick={() => updateQuantity(product.id, currentQty - 1)}
-                className="p-1.5 hover:bg-emerald-700 transition-colors cursor-pointer"
+                className="shrink-0 p-1.5 hover:bg-emerald-700 transition-colors cursor-pointer"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
+
               <span className="px-2 text-xs font-black min-w-[20px] text-center">
                 {currentQty}
               </span>
+
               <button
                 type="button"
+                aria-label={`Increase ${product.name} quantity`}
                 onClick={() => updateQuantity(product.id, currentQty + 1)}
                 disabled={currentQty >= product.stock}
-                className="p-1.5 hover:bg-emerald-700 transition-colors disabled:opacity-40 cursor-pointer"
+                className="shrink-0 p-1.5 hover:bg-emerald-700 transition-colors disabled:opacity-40 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -121,10 +128,10 @@ export default function ProductCard({ product, onSelect }) {
               type="button"
               disabled={isOutOfStock}
               onClick={() => addToCart(product.id, 1)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 hover:border-transparent font-bold text-xs rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-95"
+              className="inline-flex shrink-0 items-center justify-center gap-1 min-w-[76px] whitespace-nowrap px-2.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 hover:border-transparent font-bold text-xs rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-95"
             >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Add</span>
+              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Add</span>
             </button>
           )}
         </div>
