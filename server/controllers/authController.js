@@ -135,7 +135,7 @@ export async function createAccountDeleteRequest(req, res) {
   }
 }
 
-export async function getMe(req, res) {
+export async function getMeDELETE(req, res) {
   try {
     const meta = await authService.getUserRolesAndPermissions(req.user.id);
     const stats = await reportService.getCustomerStats(req.user.id);
@@ -153,6 +153,43 @@ export async function getMe(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+
+export async function getMe(req, res) {
+  try {
+    // Re-check current account status and permissions from the database.
+    const meta = await authService.getUserRolesAndPermissions(req.user.id);
+
+    const stats = await reportService.getCustomerStats(req.user.id);
+
+    return res.json({
+      success: true,
+      data: {
+        user: req.user,
+        roles: meta.roles,
+        permissions: meta.permissions,
+        destination: meta.destination,
+        stats,
+      },
+    });
+  } catch (err) {
+    if (err.code === 'ACCOUNT_DELETED' || err.statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        code: 'ACCOUNT_DELETED',
+        message: 'Your account is no longer active. Please log in again.',
+      });
+    }
+
+    console.error('getMe error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to retrieve your account information.',
+    });
+  }
+}
+
 
 export async function updateProfile(req, res) {
   try {

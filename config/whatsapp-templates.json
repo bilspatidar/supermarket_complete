@@ -25,7 +25,29 @@
         }
       ]
     }
+  },
+  "account_delete_information": {
+  "template_name": "account_delete_information",
+  "language": "en",
+  "body": "Hello {{customer_name}}, your account deletion request with {{store_name}} has been completed successfully. Your account login has been deactivated, and your personal account information has been deleted or anonymized where applicable. Certain order, invoice, or transaction records may be retained where required by law. Thank you for being with us.",
+  "variables": [
+    "customer_name",
+    "store_name"
+  ],
+  "enabled": true,
+  "meta": {
+    "send_as_template": true,
+    "body_parameters": [
+      "customer_name",
+      "store_name"
+    ],
+    "defaults": {
+      "customer_name": "Valued Customer",
+      "store_name": "Swastik Supermarket"
+    },
+    "buttons": []
   }
+}
 },
 "greeting": {
   "welcome": {

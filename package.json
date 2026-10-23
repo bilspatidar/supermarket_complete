@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "TZ=Asia/Kolkata node server.js",
     "build": "vite build",
-    "start": "node server.js",
+    "start": "TZ=Asia/Kolkata node server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "migrate": "node database/migrate.js",

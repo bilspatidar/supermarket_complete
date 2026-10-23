@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
   }, []);
 
 
-async function checkCurrentUser() {
+async function checkCurrentUserDELETE() {
   const token = localStorage.getItem('freshmart_token');
 
   if (!token) {
@@ -56,6 +56,48 @@ async function checkCurrentUser() {
 } finally {
   setLoading(false);
 }
+}
+
+
+
+async function checkCurrentUser() {
+  const token = localStorage.getItem('freshmart_token');
+
+  if (!token) {
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const res = await client.get('/auth/me');
+
+    if (res.success && res.data) {
+      const apiUser = res.data.user;
+
+      if (!apiUser || apiUser.status === 'DELETED') {
+        logout();
+        return;
+      }
+
+      setUser(apiUser);
+      setRoles(res.data.roles || []);
+      setPermissions(res.data.permissions || []);
+      setDestination(res.data.destination || '/account');
+      setStats(res.data.stats || null);
+    } else {
+      logout();
+    }
+  } catch (err) {
+    console.warn('Failed to restore session:', err.message);
+
+    const status = err.status || err.response?.status;
+
+    if (status === 401 || status === 403) {
+      logout();
+    }
+  } finally {
+    setLoading(false);
+  }
 }
 
 

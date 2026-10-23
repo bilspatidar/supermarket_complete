@@ -17,7 +17,7 @@ class AuthService {
   /**
    * Helper to load user's roles and permissions
    */
-  async getUserRolesAndPermissions(userId) {
+  async getUserRolesAndPermissionsDELETE(userId) {
     const user = await db.get('SELECT id, account_type FROM users WHERE id = ?', [userId]);
     const accountType = user?.account_type || 'CUSTOMER';
 
@@ -62,6 +62,75 @@ class AuthService {
       account_type: accountType,
     };
   }
+
+
+
+async getUserRolesAndPermissions(userId) {
+  const user = await db.get(
+    `SELECT id, account_type, status
+     FROM users
+     WHERE id = ?
+     LIMIT 1`,
+    [userId]
+  );
+
+  if (!user || user.status !== 'ACTIVE') {
+    const error = new Error(
+      'Account is no longer active. Please log in again.'
+    );
+    error.statusCode = 401;
+    error.code = 'ACCOUNT_DELETED';
+    throw error;
+  }
+
+  const accountType = user.account_type || 'CUSTOMER';
+
+  const roles = await db.query(
+    `SELECT r.id, r.name, r.description
+     FROM roles r
+     JOIN user_roles ur ON r.id = ur.role_id
+     WHERE ur.user_id = ?`,
+    [userId]
+  );
+
+  const permissions = await db.query(
+    `SELECT DISTINCT p.name
+     FROM permissions p
+     JOIN role_permissions rp ON p.id = rp.permission_id
+     JOIN user_roles ur ON rp.role_id = ur.role_id
+     WHERE ur.user_id = ?`,
+    [userId]
+  );
+
+  const roleNames = roles.map(r => r.name);
+  const permNames = permissions.map(p => p.name);
+
+  let destination = '/account';
+
+  if (accountType === 'INTERNAL') {
+    if (
+      roleNames.includes('SUPER_ADMIN') ||
+      roleNames.includes('ADMIN') ||
+      roleNames.includes('STORE_MANAGER')
+    ) {
+      destination = '/admin/dashboard';
+    } else if (roleNames.includes('CASHIER_POS')) {
+      destination = '/admin/pos';
+    } else if (roleNames.includes('DELIVERY_STAFF')) {
+      destination = '/admin/orders';
+    } else {
+      destination = '/admin/dashboard';
+    }
+  }
+
+  return {
+    roles: roleNames,
+    permissions: permNames,
+    destination,
+    account_type: accountType,
+  };
+}
+
 
   /**
    * Generate JWT Token
@@ -687,26 +756,10 @@ async getAccountDeletionRequests({ status = 'ALL', search = '' } = {}) {
 }
 
 
+
+
 async updateAccountDeletionRequest(requestId, status, adminNotes) {
-  const existing = await db.get(
-    `SELECT id, user_id, status, admin_notes
-     FROM account_deletion_requests
-     WHERE id = ?
-     LIMIT 1`,
-    [requestId]
-  );
-
-  if (!existing) {
-    const error = new Error('Account deletion request not found.');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  if (existing.status === 'COMPLETED') {
-    const error = new Error('Account deletion is already completed.');
-    error.statusCode = 409;
-    throw error;
-  }
+  let notification = null;
 
   const allowedStatuses = [
     'PENDING',
@@ -723,92 +776,215 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
 
   const finalNotes =
     adminNotes === undefined
-      ? existing.admin_notes
-      : (adminNotes?.trim() || null);
+      ? undefined
+      : typeof adminNotes === 'string'
+        ? adminNotes.trim() || null
+        : null;
 
-  if (status === 'APPROVED') {
-    const userId = existing.user_id;
+  // Save the transaction result instead of returning immediately.
+  const result = await db.transaction(async (tx) => {
+    const existing = await tx.get(
+      `SELECT id, user_id, status, admin_notes
+       FROM account_deletion_requests
+       WHERE id = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [requestId]
+    );
 
-    if (!userId) {
-      const error = new Error(
-        'No user is linked to this deletion request.'
-      );
-      error.statusCode = 400;
+    if (!existing) {
+      const error = new Error('Account deletion request not found.');
+      error.statusCode = 404;
       throw error;
     }
 
-    const user = await db.get(
-      'SELECT id FROM users WHERE id = ? LIMIT 1',
-      [userId]
-    );
+    if (existing.status === 'COMPLETED') {
+      const error = new Error('Account deletion is already completed.');
+      error.statusCode = 409;
+      throw error;
+    }
 
-    if (user) {
-      // Remove customer addresses.
-      await db.run(
-        'DELETE FROM customer_addresses WHERE user_id = ?',
+    const notes =
+      finalNotes === undefined ? existing.admin_notes : finalNotes;
+
+    if (status === 'APPROVED') {
+      const userId = existing.user_id;
+
+      if (!userId) {
+        const error = new Error(
+          'No user is linked to this deletion request.'
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const user = await tx.get(
+        `SELECT id, name, mobile, status
+         FROM users
+         WHERE id = ?
+         LIMIT 1
+         FOR UPDATE`,
         [userId]
       );
 
-      // Remove checkout sessions associated with this customer.
-      // Verify that no payment reconciliation data needs retention.
-      await db.run(
-        `DELETE FROM checkout_sessions
-         WHERE user_id = ?
-           AND payment_status = 'PENDING'
-           AND order_id IS NULL`,
-        [userId]
-      );
+      if (user && user.status !== 'DELETED') {
+        // Capture notification details before anonymizing the user.
+        notification = {
+          recipient: user.mobile,
+          name: user.name,
+          requestId,
+        };
 
-      // Delete the user. This requires all blocking foreign keys
-      // to have been handled appropriately in the database schema.
-      await db.run(
-        'DELETE FROM users WHERE id = ?',
-        [userId]
+        const anonymizedMobile =
+          `DEL${String(userId).padStart(17, '0')}`;
+
+        await tx.run(
+          `DELETE FROM customer_addresses
+           WHERE user_id = ?`,
+          [userId]
+        );
+
+        await tx.run(
+          `DELETE FROM checkout_sessions
+           WHERE user_id = ?
+             AND payment_status = 'PENDING'
+             AND order_id IS NULL`,
+          [userId]
+        );
+
+        await tx.run(
+          `UPDATE users
+           SET mobile = ?,
+               password_hash = ?,
+               name = 'Deleted User',
+               email = NULL,
+               dob = NULL,
+               anniversary_date = NULL,
+               profile_image = NULL,
+               status = 'DELETED',
+               mobile_verified = 0,
+               data_deleted_request_id = ?,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [
+            anonymizedMobile,
+            `DELETED_ACCOUNT_${userId}_${requestId}`,
+            requestId,
+            userId,
+          ]
+        );
+      }
+
+      await tx.run(
+        `UPDATE account_deletion_requests
+         SET status = 'COMPLETED',
+             admin_notes = ?,
+             reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP),
+             completed_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [notes, requestId]
+      );
+    } else {
+      await tx.run(
+        `UPDATE account_deletion_requests
+         SET status = ?,
+             admin_notes = ?,
+             reviewed_at = CASE
+               WHEN ? IN ('UNDER_REVIEW', 'REJECTED')
+               THEN COALESCE(reviewed_at, CURRENT_TIMESTAMP)
+               ELSE reviewed_at
+             END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [status, notes, status, requestId]
       );
     }
 
-    // Mark completed only after deletion succeeds.
-    await db.run(
-      `UPDATE account_deletion_requests
-       SET status = 'COMPLETED',
-           admin_notes = ?,
-           reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP),
-           completed_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [finalNotes, requestId]
+    return await tx.get(
+      `SELECT
+         id, user_id, name, mobile, reason, status,
+         admin_notes, requested_at, reviewed_at,
+         completed_at, updated_at
+       FROM account_deletion_requests
+       WHERE id = ?
+       LIMIT 1`,
+      [requestId]
     );
-  } else {
-    await db.run(
-      `UPDATE account_deletion_requests
-       SET status = ?,
-           admin_notes = ?,
-           reviewed_at = CASE
-             WHEN ? IN ('UNDER_REVIEW', 'REJECTED')
-             THEN COALESCE(reviewed_at, CURRENT_TIMESTAMP)
-             ELSE reviewed_at
-           END,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [status, finalNotes, status, requestId]
-    );
+  });
+
+  // The transaction has now committed successfully.
+  // Notification failure must not undo completed deletion.
+  if (
+    status === 'APPROVED' &&
+    result?.status === 'COMPLETED' &&
+    notification?.recipient
+  ) {
+    await this.sendAccountDeletionConfirmation(notification);
   }
 
-  return await db.get(
-    `SELECT
-       id, user_id, name, mobile, reason, status,
-       admin_notes, requested_at, reviewed_at,
-       completed_at, updated_at
-     FROM account_deletion_requests
-     WHERE id = ?
-     LIMIT 1`,
-    [requestId]
-  );
+  return result;
+},
+
+async sendAccountDeletionConfirmation({
+  recipient,
+  name,
+  requestId,
+}) {
+  try {
+    const result = await whatsAppService.send({
+      recipient,
+      templateKey: 'account.delete_inform',
+      variables: {
+        customer_name: name || 'Valued Customer',
+        store_name: 'Swastik Supermarket',
+      },
+    });
+
+    console.log('[ACCOUNT DELETION] Confirmation sent:', {
+      requestId,
+      result,
+    });
+  } catch (err) {
+    console.error('[ACCOUNT DELETION] WhatsApp confirmation failed:', {
+      requestId,
+      message: err.message,
+      status: err.response?.status || err.status,
+      providerError: err.response?.data || err.providerError || null,
+    });
+  }
 }
 
+async  sendAccountDeletionConfirmation({
+  recipient,
+  name,
+  requestId,
+}) {
+  try {
+    const result = await whatsAppService.send({
+      recipient,
+      templateKey: 'otp.account_delete_information',
+      variables: {
+        customer_name: name || 'Valued Customer',
+        store_name: 'Swastik Supermarket',
+      },
+      // Avoid associating a deleted account with new user-linked logs.
+      // Include userId only if your WhatsApp service requires it.
+    });
 
-
-
+    console.log('[ACCOUNT DELETION] Confirmation sent:', {
+      requestId,
+      result,
+    });
+  } catch (err) {
+    console.error('[ACCOUNT DELETION] Confirmation failed:', {
+      requestId,
+      message: err.message,
+      status: err.response?.status || err.status,
+      providerError: err.response?.data || err.providerError || null,
+    });
+  }
+}
 
 async createAccountDeleteRequest(userId, mobile, reason) {
   // Fetch customer from MySQL-backed users table.
@@ -875,6 +1051,10 @@ async createAccountDeleteRequest(userId, mobile, reason) {
     [result.lastID ?? result.insertId]
   );
 }
+
+
+
+
   /**
    * Admin / Staff DOB & Anniversary Correction with Mandatory Audit Log
    */
