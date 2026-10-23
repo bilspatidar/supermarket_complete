@@ -924,7 +924,7 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
   }
 
   return result;
-},
+}
 
 async sendAccountDeletionConfirmation({
   recipient,
