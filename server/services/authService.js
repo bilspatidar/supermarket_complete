@@ -757,7 +757,10 @@ async getAccountDeletionRequests({ status = 'ALL', search = '' } = {}) {
 
 
 
+
 async updateAccountDeletionRequest(requestId, status, adminNotes) {
+  let notification = null;
+
   const allowedStatuses = [
     'PENDING',
     'UNDER_REVIEW',
@@ -774,11 +777,12 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
   const finalNotes =
     adminNotes === undefined
       ? undefined
-      : (typeof adminNotes === 'string' ? adminNotes.trim() || null : null);
+      : typeof adminNotes === 'string'
+        ? adminNotes.trim() || null
+        : null;
 
-  // Use the transaction API supported by your database wrapper.
-  // All reads/writes below must use the same transaction connection.
-  return await db.transaction(async (tx) => {
+  // Save the transaction result instead of returning immediately.
+  const result = await db.transaction(async (tx) => {
     const existing = await tx.get(
       `SELECT id, user_id, status, admin_notes
        FROM account_deletion_requests
@@ -815,7 +819,7 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
       }
 
       const user = await tx.get(
-        `SELECT id, status
+        `SELECT id, name, mobile, status
          FROM users
          WHERE id = ?
          LIMIT 1
@@ -823,19 +827,23 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
         [userId]
       );
 
-      if (user) {
-        // Use a unique replacement mobile because users.mobile is UNIQUE
-        // and NOT NULL. This format fits varchar(20).
-        const anonymizedMobile = `DEL${String(userId).padStart(17, '0')}`;
+      if (user && user.status !== 'DELETED') {
+        // Capture notification details before anonymizing the user.
+        notification = {
+          recipient: user.mobile,
+          name: user.name,
+          requestId,
+        };
 
-        // Remove saved addresses.
+        const anonymizedMobile =
+          `DEL${String(userId).padStart(17, '0')}`;
+
         await tx.run(
           `DELETE FROM customer_addresses
            WHERE user_id = ?`,
           [userId]
         );
 
-        // Remove abandoned, unpaid checkout sessions only.
         await tx.run(
           `DELETE FROM checkout_sessions
            WHERE user_id = ?
@@ -844,8 +852,6 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
           [userId]
         );
 
-        // Preserve the user row and ID for historical foreign keys.
-        // Invalidate credentials and remove profile details.
         await tx.run(
           `UPDATE users
            SET mobile = ?,
@@ -869,7 +875,6 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
         );
       }
 
-      // Mark the request completed only after anonymization succeeds.
       await tx.run(
         `UPDATE account_deletion_requests
          SET status = 'COMPLETED',
@@ -907,8 +912,79 @@ async updateAccountDeletionRequest(requestId, status, adminNotes) {
       [requestId]
     );
   });
+
+  // The transaction has now committed successfully.
+  // Notification failure must not undo completed deletion.
+  if (
+    status === 'APPROVED' &&
+    result?.status === 'COMPLETED' &&
+    notification?.recipient
+  ) {
+    await this.sendAccountDeletionConfirmation(notification);
+  }
+
+  return result;
+},
+
+async sendAccountDeletionConfirmation({
+  recipient,
+  name,
+  requestId,
+}) {
+  try {
+    const result = await whatsAppService.send({
+      recipient,
+      templateKey: 'account.delete_inform',
+      variables: {
+        customer_name: name || 'Valued Customer',
+        store_name: 'Swastik Supermarket',
+      },
+    });
+
+    console.log('[ACCOUNT DELETION] Confirmation sent:', {
+      requestId,
+      result,
+    });
+  } catch (err) {
+    console.error('[ACCOUNT DELETION] WhatsApp confirmation failed:', {
+      requestId,
+      message: err.message,
+      status: err.response?.status || err.status,
+      providerError: err.response?.data || err.providerError || null,
+    });
+  }
 }
 
+async  sendAccountDeletionConfirmation({
+  recipient,
+  name,
+  requestId,
+}) {
+  try {
+    const result = await whatsAppService.send({
+      recipient,
+      templateKey: 'otp.account_delete_information',
+      variables: {
+        customer_name: name || 'Valued Customer',
+        store_name: 'Swastik Supermarket',
+      },
+      // Avoid associating a deleted account with new user-linked logs.
+      // Include userId only if your WhatsApp service requires it.
+    });
+
+    console.log('[ACCOUNT DELETION] Confirmation sent:', {
+      requestId,
+      result,
+    });
+  } catch (err) {
+    console.error('[ACCOUNT DELETION] Confirmation failed:', {
+      requestId,
+      message: err.message,
+      status: err.response?.status || err.status,
+      providerError: err.response?.data || err.providerError || null,
+    });
+  }
+}
 
 async createAccountDeleteRequest(userId, mobile, reason) {
   // Fetch customer from MySQL-backed users table.
@@ -975,6 +1051,10 @@ async createAccountDeleteRequest(userId, mobile, reason) {
     [result.lastID ?? result.insertId]
   );
 }
+
+
+
+
   /**
    * Admin / Staff DOB & Anniversary Correction with Mandatory Audit Log
    */
