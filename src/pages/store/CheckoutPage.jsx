@@ -712,7 +712,7 @@ if (
                     type="text"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="Near Apollo Hospital"
+                    placeholder="Near School"
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 text-slate-900"
                   />
                 </div>

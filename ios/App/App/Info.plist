@@ -51,6 +51,8 @@
 	<array>
 		<string>armv7</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Swastik Supermarket needs microphone access for voice search.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -64,6 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Swastik Supermarket uses speech recognition to search for products by voice.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

@@ -124,6 +124,7 @@ export default function Footer({ onNavigate }) {
           <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Customer Care</h4>
           <ul className="space-y-2 text-xs">
             <li><button onClick={() => onNavigate('cms', { slug: 'about-us' })} className="hover:text-emerald-400 transition-colors cursor-pointer">About</button></li>
+            <li><button onClick={() => onNavigate('cms', { slug: 'contact' })} className="hover:text-emerald-400 transition-colors cursor-pointer">Contact</button></li>
             <li><button onClick={() => onNavigate('cms', { slug: 'delivery-policy' })} className="hover:text-emerald-400 transition-colors cursor-pointer">Privacy &amp; Policy</button></li>
             <li><button onClick={() => onNavigate('cms', { slug: 'refund-policy' })} className="hover:text-emerald-400 transition-colors cursor-pointer">Refund &amp; Cancellation</button></li>
             <li><button onClick={() => onNavigate('cms', { slug: 'terms-and-conditions' })} className="hover:text-emerald-400 transition-colors cursor-pointer">Terms &amp; Conditions</button></li>

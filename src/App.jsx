@@ -574,14 +574,18 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <DeliveryProvider>
-          <Toaster
-            position="top-center"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 3000,
-            }}
-          />
-
+        <Toaster
+  position="top-center"
+  containerStyle={{
+    top: "50%",
+    left: 0,
+    right: 0,
+    transform: "translateY(-50%)",
+  }}
+  toastOptions={{
+    duration: 3000,
+  }}
+/>
           <MainRouter />
         </DeliveryProvider>
       </CartProvider>

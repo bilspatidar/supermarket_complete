@@ -1,0 +1,34 @@
+
+{
+  "appId": "com.sparkhub.swastik",
+  "appName": "Swastik Supermarket",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "Geolocation": {
+      "permissions": [
+        "location"
+      ]
+    },
+    "SpeechRecognition": {
+      "language": "en-IN"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 250,
+      "backgroundColor": "#411E0C",
+      "showSpinner": false,
+      "splashFullScreen": false,
+      "splashImmersive": false
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK"
+    }
+  }
+}
