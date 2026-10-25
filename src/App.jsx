@@ -155,12 +155,17 @@ function routeFromLocation() {
     };
   }
 
-  if (pathname === '/delivery-policy') {
-    return {
-      route: 'delivery-policy',
-      params: {},
-    };
-  }
+ if (
+  pathname === '/privacy-policy' ||
+  pathname === '/delivery-policy'
+) {
+  return {
+    route: 'cms',
+    params: {
+      slug: 'privacy-policy',
+    },
+  };
+}
 
   if (pathname === '/refund-cancellation') {
     return {
@@ -250,7 +255,11 @@ function locationFromRoute(route, params = {}) {
       return '/about';
 
     case 'delivery-policy':
-      return '/delivery-policy';
+      return '/privacy-policy';
+
+    case 'privacy-policy':
+      return '/privacy-policy';
+      
 
     case 'refund-cancellation':
       return '/refund-cancellation';
@@ -503,7 +512,7 @@ function MainRouter() {
         {/* Dynamic CMS Pages (Requirement 6, 7) */}
         {route === 'contact' && <CMSPage slug="contact" onNavigate={navigate} />}
         {route === 'about' && <CMSPage slug="about" onNavigate={navigate} />}
-        {route === 'delivery-policy' && <CMSPage slug="delivery-policy" onNavigate={navigate} />}
+        {route === 'privacy-policy' && <CMSPage slug="privacy-policy" onNavigate={navigate} />}
         {route === 'refund-cancellation' && <CMSPage slug="refund-cancellation" onNavigate={navigate} />}
         {route === 'terms' && <CMSPage slug="terms" onNavigate={navigate} />}
         {route === 'privacy-policy' && <CMSPage slug="privacy-policy" onNavigate={navigate} />}

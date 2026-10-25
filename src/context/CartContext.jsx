@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import client from '../api/client.js';
 import { useAuth } from './AuthContext.jsx';
@@ -13,12 +13,13 @@ export function CartProvider({ children }) {
   const [cartId, setCartId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const fetchRequestId = useRef(0);
 
   useEffect(() => {
     fetchCart();
   }, [user]);
 
-  async function fetchCart() {
+  async function fetchCartDELETE() {
     setLoading(true);
     try {
       const res = await client.get('/cart');
@@ -34,6 +35,35 @@ export function CartProvider({ children }) {
       setLoading(false);
     }
   }
+
+
+async function fetchCart() {
+  const requestId = ++fetchRequestId.current;
+  setLoading(true);
+
+  try {
+    const res = await client.get('/cart');
+
+    // Ignore responses from older requests.
+    if (requestId !== fetchRequestId.current) return;
+
+    if (res.success && res.data) {
+      setCartId(res.data.cartId);
+      setItems(res.data.items || []);
+      setSubtotal(res.data.subtotal || 0);
+      setCount(res.data.count || 0);
+    }
+  } catch (err) {
+    if (requestId === fetchRequestId.current) {
+      console.warn('Failed to load cart:', err.message);
+    }
+  } finally {
+    if (requestId === fetchRequestId.current) {
+      setLoading(false);
+    }
+  }
+}
+
 
   async function addToCartOpenDrwaser(productId, quantity = 1) {
     try {

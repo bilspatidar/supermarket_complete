@@ -28,15 +28,16 @@ export default function LoginPage({ onNavigate }) {
 
   const [regName, setRegName] = useState('');
 
-  const [regEmail, setRegEmail] = useState('');
+  // const [regEmail, setRegEmail] = useState('');
 
-  const [regDob, setRegDob] = useState('');
+  // const [regDob, setRegDob] = useState('');
 
-  const [regAnniv, setRegAnniv] = useState('');
+  // const [regAnniv, setRegAnniv] = useState('');
 
   const [error, setError] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
 
 
 
@@ -154,6 +155,17 @@ export default function LoginPage({ onNavigate }) {
 
     setError('');
 
+      // Validate password confirmation before making the API request
+      if (password !== confirmPassword) {
+        setError('Passwords do not match. Please try again.');
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        return;
+      }
+
     setLoading(true);
 
     try {
@@ -166,11 +178,11 @@ export default function LoginPage({ onNavigate }) {
 
         name: regName,
 
-        email: regEmail || null,
+        email:  null,
 
-        dob: regDob || null,
+        dob: null,
 
-        anniversaryDate: regAnniv || null,
+        anniversaryDate: null,
 
       });
 
@@ -605,7 +617,43 @@ export default function LoginPage({ onNavigate }) {
 
 
 
-            <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">
+              Confirm Password *
+            </label>
+
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter your password"
+              required
+              autoComplete="new-password"
+              aria-invalid={
+                confirmPassword.length > 0 &&
+                password !== confirmPassword
+              }
+              className={`w-full p-2.5 bg-slate-50 border rounded-xl outline-hidden
+                focus:border-emerald-500 text-slate-900 ${
+                  confirmPassword.length > 0 &&
+                  password !== confirmPassword
+                    ? 'border-rose-500'
+                    : 'border-slate-200'
+                }`}
+            />
+
+            {confirmPassword.length > 0 &&
+              password !== confirmPassword && (
+                <p className="mt-1 text-rose-600 text-[11px]">
+                  Passwords do not match.
+                </p>
+              )}
+          </div>
+
+
+
+
+            {/* <div className="grid grid-cols-2 gap-2">
 
               <div>
 
@@ -649,7 +697,7 @@ export default function LoginPage({ onNavigate }) {
 
               ℹ️ Birthday & Anniversary are set once and locked for special reward vouchers.
 
-            </p>
+            </p> */}
 
 
 
@@ -665,7 +713,7 @@ export default function LoginPage({ onNavigate }) {
 
               <Sparkles className="w-4 h-4" />
 
-              <span>{loading ? 'Creating Account...' : 'Register & Claim ₹100 Bonus'}</span>
+              <span>{loading ? 'Creating Account...' : 'Register'}</span>
 
             </button>
 
