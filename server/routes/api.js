@@ -71,6 +71,7 @@ router.put(
 // 2. Catalog (Products, Categories, Brands) & Universal Upload
 // -------------------------------------------------------------
 router.get('/products', productController.getProducts);
+router.get('/admin_products', productController.getAdminProducts);
 router.get('/products/:id', productController.getProductById);
 router.post(
   '/products',

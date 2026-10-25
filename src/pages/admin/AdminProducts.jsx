@@ -132,7 +132,7 @@ export default function AdminProducts() {
       }
   
       const productRequest = client.get(
-        `/products?${productParams.toString()}`
+        `/admin_products?${productParams.toString()}`
       );
   
       // Categories & brands only need to be loaded on first page

@@ -142,22 +142,9 @@ async function register(userData) {
   throw new Error(res.message || 'Registration failed');
 }
 
-  function saveSessionDELETE(data) {
-    localStorage.setItem('freshmart_token', data.token);
-    setUser(data.user);
-    setRoles(data.meta?.roles || []);
-    setPermissions(data.meta?.permissions || []);
-    setDestination(data.meta?.destination || '/account');
-
-    // Trigger cart merge after guest login
-    const guestToken = localStorage.getItem('freshmart_guest_token');
-    if (guestToken) {
-      client.post('/cart/merge', { guestToken }).catch(() => {});
-    }
-  }
 
 
-async function saveSession(data) {
+async function saveSessionDELETE(data) {
   // Save authentication before making authenticated requests.
   localStorage.setItem('freshmart_token', data.token);
 
@@ -179,6 +166,41 @@ async function saveSession(data) {
       console.error('Guest cart merge request failed:', err);
     }
   }
+
+  return data;
+}
+
+
+
+async function saveSession(data) {
+  // Save authentication first so /cart/merge is authenticated.
+  localStorage.setItem('freshmart_token', data.token);
+
+  const guestToken = localStorage.getItem('freshmart_guest_token');
+
+  if (guestToken) {
+    try {
+      const mergeRes = await client.post('/cart/merge', { guestToken });
+
+      if (!mergeRes?.success) {
+        throw new Error(mergeRes?.message || 'Guest cart merge failed');
+      }
+
+      // Remove the guest token only after a confirmed merge.
+      localStorage.removeItem('freshmart_guest_token');
+    } catch (err) {
+      console.error('Guest cart merge failed:', err);
+
+      // Keep the guest token so the merge can be retried.
+      // Do not silently discard guest cart items.
+    }
+  }
+
+  // Update user state after the merge request finishes.
+  setUser(data.user);
+  setRoles(data.meta?.roles || []);
+  setPermissions(data.meta?.permissions || []);
+  setDestination(data.meta?.destination || '/account');
 
   return data;
 }

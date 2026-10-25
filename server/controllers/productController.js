@@ -78,6 +78,170 @@ export async function getProducts(req, res) {
     // ---------------------------------------
     // Image Filter
     // ---------------------------------------
+
+      conditions.push('p.is_image = 1');
+   
+
+    // ---------------------------------------
+    // WHERE Clause
+    // ---------------------------------------
+    const whereClause =
+      conditions.length > 0
+        ? `WHERE ${conditions.join(' AND ')}`
+        : '';
+
+    // ---------------------------------------
+    // Sorting
+    // ---------------------------------------
+    let orderClause = 'p.sort_order ASC, p.id DESC';
+
+    // Stock sorting has priority
+    if (stockSort === 'asc') {
+      orderClause = 'p.stock ASC, p.id DESC';
+    } else if (stockSort === 'desc') {
+      orderClause = 'p.stock DESC, p.id DESC';
+    }
+
+    // Price sorting
+    else if (sort === 'price_asc') {
+      orderClause = 'p.selling_price ASC, p.id DESC';
+    } else if (sort === 'price_desc') {
+      orderClause = 'p.selling_price DESC, p.id DESC';
+    }
+
+    // ---------------------------------------
+    // Total Count
+    // ---------------------------------------
+    const countRow = await db.get(
+      `
+      SELECT COUNT(p.id) AS total
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      ${whereClause}
+      `,
+      args
+    );
+
+    const total = Number(countRow?.total || 0);
+
+    // ---------------------------------------
+    // Products
+    // ---------------------------------------
+    const products = await db.query(
+      `
+      SELECT
+        p.*,
+        c.name AS category_name,
+        c.slug AS category_slug,
+        b.name AS brand_name,
+        b.slug AS brand_slug
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      ${whereClause}
+      ORDER BY ${orderClause}
+      LIMIT ? OFFSET ?
+      `,
+      [...args, limitNumber, offset]
+    );
+
+    // ---------------------------------------
+    // Response
+    // ---------------------------------------
+    return res.json({
+      success: true,
+      data: {
+        products,
+        pagination: {
+          total,
+          page: pageNumber,
+          limit: limitNumber,
+          pages: Math.ceil(total / limitNumber),
+        },
+      },
+    });
+  } catch (err) {
+    console.error('getProducts error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+export async function getAdminProducts(req, res) {
+  try {
+    const {
+      search = '',
+      category = '',
+      brand = '',
+      status = 'ACTIVE',
+      featured = '',
+      sort = 'featured',
+      image = '',
+      stockSort = '',
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    // ---------------------------------------
+    // Pagination
+    // ---------------------------------------
+    const pageNumber = Math.max(1, Number(page) || 1);
+    const limitNumber = Math.max(1, Number(limit) || 20);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    // ---------------------------------------
+    // Conditions
+    // ---------------------------------------
+    const conditions = [];
+    const args = [];
+
+    // Status
+    if (status && status !== 'ALL') {
+      conditions.push('p.status = ?');
+      args.push(status);
+    }
+
+    // Featured
+    if (featured === '1' || featured === 'true') {
+      conditions.push('p.featured = 1');
+    }
+
+    // Category
+    if (category) {
+      conditions.push('(c.slug = ? OR c.id = ?)');
+      args.push(category, category);
+    }
+
+    // Brand
+    if (brand) {
+      conditions.push('(b.slug = ? OR b.id = ?)');
+      args.push(brand, brand);
+    }
+
+    // Search
+    if (search && search.trim()) {
+      const q = `%${search.trim()}%`;
+
+      conditions.push(`
+        (
+          p.name LIKE ?
+          OR p.product_code LIKE ?
+          OR p.description LIKE ?
+          OR c.name LIKE ?
+          OR b.name LIKE ?
+        )
+      `);
+
+      args.push(q, q, q, q, q);
+    }
+
+    // ---------------------------------------
+    // Image Filter
+    // ---------------------------------------
     if (image === 'with') {
       conditions.push('p.is_image = 1');
     }
@@ -894,4 +1058,5 @@ export default {
   deleteProduct,
   uploadImage,
   bulkImportProducts,
+  getAdminProducts
 };

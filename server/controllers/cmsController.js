@@ -198,7 +198,7 @@ export async function getAdminPages(req, res) {
 /**
  * Public: Get single page content dynamically by slug
  */
-export async function getPageBySlug(req, res) {
+export async function getPageBySlugdelete(req, res) {
   try {
     const { slug } = req.params;
     const page = await db.get(
@@ -213,6 +213,49 @@ export async function getPageBySlug(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 }
+
+export async function getPageBySlug(req, res) {
+  try {
+    const requestedSlug = String(req.params.slug || '')
+      .trim()
+      .toLowerCase();
+
+    const slugToSearch =
+      requestedSlug === 'delivery-policy'
+        ? 'privacy-policy'
+        : requestedSlug;
+
+    const page = await db.get(
+      `SELECT *
+       FROM pages
+       WHERE LOWER(slug) = ?
+         AND status = 'ACTIVE'
+       LIMIT 1`,
+      [slugToSearch]
+    );
+
+    if (!page) {
+      return res.status(404).json({
+        success: false,
+        message: 'Page not found',
+        searchedSlug: slugToSearch,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: page,
+    });
+  } catch (err) {
+    console.error('getPageBySlug error:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+}
+
 
 /**
  * Admin: Create CMS page
