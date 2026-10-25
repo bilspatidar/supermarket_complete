@@ -1,6 +1,6 @@
 
 {
-  "appId": "com.sparkhub.swastiksupermarket",
+  "appId": "com.sparkhub.swastik",
   "appName": "Swastik Supermarket",
   "webDir": "dist",
   "bundledWebRuntime": false,

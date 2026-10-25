@@ -81,11 +81,10 @@ export default function ProductCard({ product, onSelect }) {
           {/* Price: allowed to shrink on narrow mobile cards */}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-              <span className="text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
-                ₹{product.selling_price}
-              </span>
-
-           
+             <span className="text-sm sm:text-base font-black text-slate-900 whitespace-nowrap">
+              ₹{product.selling_price}
+            </span>
+                      
             </div>
 
             <span className="text-[10px] text-slate-400 block leading-tight">
@@ -124,15 +123,15 @@ export default function ProductCard({ product, onSelect }) {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={isOutOfStock}
-              onClick={() => addToCart(product.id, 1)}
-              className="inline-flex shrink-0 items-center justify-center gap-1 min-w-[76px] whitespace-nowrap px-2.5 py-2 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 hover:border-transparent font-bold text-xs rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-95"
-            >
-              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-              <span className="whitespace-nowrap">Add</span>
-            </button>
+                <button
+                  type="button"
+                  disabled={isOutOfStock}
+                  onClick={() => addToCart(product.id, 1)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1 min-w-[64px] whitespace-nowrap px-2 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 hover:border-transparent font-bold text-[11px] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs active:scale-95"
+                >
+                  <ShoppingCart className="w-3 h-3 shrink-0" />
+                  <span className="whitespace-nowrap">Add</span>
+                </button>
           )}
         </div>
       </div>
