@@ -73,43 +73,62 @@ export default function ProductDetailPage({ productId, onNavigate }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
         
-        {/* Images */}
-        <div className="space-y-4">
-          <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center relative">
-            <img
-             src={getProductImageUrl(product)}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-            {discountPercent > 0 && (
-              <span className="absolute top-4 left-4 bg-emerald-600 text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
-                {discountPercent}% OFF
-              </span>
-            )}
-          </div>
+       
+{/* Images */}
+<div className="space-y-4 min-w-0">
+  <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-slate-200 bg-[#AEB0AC]">
+    <img
+      src={activeImage ? getProductImageUrl({ ...product, image: activeImage }) : getProductImageUrl(product)}
+      alt={product.name}
+      className="absolute inset-0 block h-full w-full object-contain object-center"
+      loading="eager"
+    />
 
-          {/* Alternate image thumbnails */}
-          {product.image2 && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setActiveImage(product.image)}
-                className={`w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer ${
-                  activeImage === product.image ? 'border-emerald-600' : 'border-transparent'
-                }`}
-              >
-                <img src={product.image} alt="Thumbnail 1" className="w-full h-full object-cover" />
-              </button>
-              <button
-                onClick={() => setActiveImage(product.image2)}
-                className={`w-16 h-16 rounded-xl overflow-hidden border-2 cursor-pointer ${
-                  activeImage === product.image2 ? 'border-emerald-600' : 'border-transparent'
-                }`}
-              >
-                <img src={product.image2} alt="Thumbnail 2" className="w-full h-full object-cover" />
-              </button>
-            </div>
-          )}
-        </div>
+    {discountPercent > 0 && (
+      <span className="absolute left-4 top-4 z-10 rounded-full bg-emerald-600 px-3 py-1 text-xs font-black text-white shadow-md">
+        {discountPercent}% OFF
+      </span>
+    )}
+  </div>
+
+  {/* Alternate image thumbnails */}
+  {product.image2 && (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => setActiveImage(product.image || '')}
+        className={`h-16 w-16 overflow-hidden rounded-xl border-2 bg-[#AEB0AC] ${
+          activeImage === product.image
+            ? 'border-emerald-600'
+            : 'border-transparent'
+        }`}
+      >
+        <img
+          src={getProductImageUrl(product)}
+          alt={`${product.name} thumbnail 1`}
+          className="h-full w-full object-contain"
+        />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setActiveImage(product.image2)}
+        className={`h-16 w-16 overflow-hidden rounded-xl border-2 bg-[#AEB0AC] ${
+          activeImage === product.image2
+            ? 'border-emerald-600'
+            : 'border-transparent'
+        }`}
+      >
+        <img
+          src={getProductImageUrl({ ...product, image: product.image2 })}
+          alt={`${product.name} thumbnail 2`}
+          className="h-full w-full object-contain"
+        />
+      </button>
+    </div>
+  )}
+</div>
+
 
         {/* Product Details */}
         <div className="flex flex-col justify-between space-y-6">

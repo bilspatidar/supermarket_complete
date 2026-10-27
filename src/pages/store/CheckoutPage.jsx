@@ -822,25 +822,26 @@ if (
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => {
-                      setCouponCode(e.target.value);
-                      if (couponError) setCouponError('');
-                    }}
-                    placeholder="e.g. WELCOME50, FRESH10"
-                    className="flex-1 p-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 uppercase font-bold"
-                  />
-                  <button
-                    type="submit"
-                    disabled={couponApplying || calcLoading}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {couponApplying ? 'Checking...' : 'Apply'}
-                  </button>
-                </form>
+                <form onSubmit={handleApplyCoupon} className="flex min-w-0 gap-1.5">
+  <input
+    type="text"
+    value={couponCode}
+    onChange={(e) => {
+      setCouponCode(e.target.value);
+      if (couponError) setCouponError('');
+    }}
+    placeholder="e.g. WELCOME50, FRESH10"
+    className="min-w-0 flex-1 w-full px-2 py-2 text-[11px] sm:text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-emerald-500 uppercase font-bold"
+  />
+
+  <button
+    type="submit"
+    disabled={couponApplying || calcLoading}
+    className="shrink-0 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] sm:text-xs rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {couponApplying ? 'Checking...' : 'Apply'}
+  </button>
+</form>
               )}
               {couponError && (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">

@@ -1,4 +1,4 @@
-package com.sparkhub.swastiksupermarket;
+package com.walrussolutions.swastik;
 
 import com.getcapacitor.BridgeActivity;
 

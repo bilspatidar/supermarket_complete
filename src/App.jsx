@@ -487,7 +487,14 @@ function MainRouter() {
   const isCustomerProtectedRoute = route === 'account' || route === 'checkout';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans pb-16 md:pb-0">
+    // <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans pb-16 md:pb-0">
+    
+    <div
+        className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans"
+        style={{
+          paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
       <Header onNavigate={navigate} currentRoute={route}  storeSettings={storeSettings} />
 
       <main className="flex-1">
@@ -550,7 +557,7 @@ function MainRouter() {
               </div>
               <h2 className="text-lg font-black text-slate-900">Sign In to Complete Order</h2>
               <p className="text-xs text-slate-500">
-                Please sign in to choose your Jabalpur delivery address, select payment method, and confirm your order.
+                Please sign in to choose your delivery address, select payment method, and confirm your order.
               </p>
               <button
                 type="button"

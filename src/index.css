@@ -134,9 +134,6 @@ textarea {
     padding-bottom: var(--safe-area-bottom);
   }
 
-  img {
-    height: auto;
-  }
 
   /* Prevent long text from forcing a wider layout */
   h1,

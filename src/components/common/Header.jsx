@@ -24,7 +24,7 @@ import { useStoreSettings } from '../../context/StoreSettingsContext';
 import { getGeneralImageUrl } from '../../utils/image.js';
 
 export default function Header({ onNavigate, currentRoute }) {
-  const { user, isStaff, isAdmin, logout } = useAuth();
+  const { user, isStaff, isAdmin, logout, validateSession } = useAuth();
   const { count, subtotal, setIsDrawerOpen } = useCart();
   const { selectedArea, selectedSubArea, setIsZoneModalOpen } = useDelivery();
   const { storeSettings } = useStoreSettings();
@@ -33,6 +33,28 @@ export default function Header({ onNavigate, currentRoute }) {
   const [isListening, setIsListening] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
   const [userDropdown, setUserDropdown] = useState(false);
+
+
+  async function handleAccountClick() {
+  setUserDropdown(false);
+
+  try {
+    const valid = await validateSession();
+
+    if (valid) {
+      onNavigate('account');
+    } else {
+      onNavigate('login');
+    }
+  } catch (err) {
+    console.error('Unable to validate account session:', err);
+
+    alert(
+      'Unable to verify your account. Please check your internet connection and try again.'
+    );
+  }
+}
+
 
   function handleSearchSubmit(e) {
     if (e) e.preventDefault();
@@ -109,7 +131,8 @@ export default function Header({ onNavigate, currentRoute }) {
               {user.account_type === 'CUSTOMER' && (
                 <button
                   type="button"
-                  onClick={() => onNavigate('account')}
+                  // onClick={() => onNavigate('account')}
+                  onClick={handleAccountClick}
                   className="flex w-full items-center gap-2 px-4 py-2 text-left font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
                 >
                   <User className="h-3.5 w-3.5" /> My Profile &amp; Orders
@@ -339,7 +362,14 @@ export default function Header({ onNavigate, currentRoute }) {
             <span>•</span>
             <button
               type="button"
-              onClick={() => (user ? onNavigate('account') : onNavigate('login'))}
+              // onClick={() => (user ? onNavigate('account') : onNavigate('login'))}
+              onClick={() => {
+                  if (user) {
+                    handleAccountClick();
+                  } else {
+                    onNavigate('login');
+                  }
+                }}
               className="flex items-center gap-1 hover:text-emerald-600"
             >
               <User className="h-3.5 w-3.5" /><span>Account</span>
