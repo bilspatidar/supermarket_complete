@@ -3,6 +3,8 @@ import client from '../api/client.js';
 
 const AuthContext = createContext();
 
+
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [roles, setRoles] = useState([]);
@@ -58,7 +60,47 @@ async function checkCurrentUserDELETE() {
 }
 }
 
+async function validateSession() {
+  const token = localStorage.getItem('freshmart_token');
 
+  if (!token) {
+    logout();
+    return false;
+  }
+
+  try {
+    const res = await client.get('/auth/me');
+    const apiUser = res?.data?.user;
+
+    if (
+      !res?.success ||
+      !apiUser ||
+      apiUser.status === 'DELETED'
+    ) {
+      logout();
+      return false;
+    }
+
+    // Refresh the user data and permissions.
+    setUser(apiUser);
+    setRoles(res.data.roles || []);
+    setPermissions(res.data.permissions || []);
+    setDestination(res.data.destination || '/account');
+    setStats(res.data.stats || null);
+
+    return true;
+  } catch (err) {
+    const status = err.status || err.response?.status;
+
+    if (status === 401 || status === 403) {
+      logout();
+      return false;
+    }
+
+    // Network/server errors are not proof that the account was deleted.
+    throw err;
+  }
+}
 
 async function checkCurrentUser() {
   const token = localStorage.getItem('freshmart_token');
@@ -256,6 +298,7 @@ async function updateProfile(profileData) {
         logout,
         updateProfile,
         refreshMe: checkCurrentUser,
+        validateSession
       }}
     >
       {children}

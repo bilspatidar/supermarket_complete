@@ -342,6 +342,10 @@ async function handleUpdateProfile(e) {
       </div>
 
       {/* Navigation Tabs */}
+     <div className="flex items-center justify-center gap-1 py-1 text-xs font-medium text-emerald-600">
+      <span>Scroll right for more items</span>
+      <ChevronRight className="h-4 w-4 animate-[slide-right_1s_ease-in-out_infinite]" />
+    </div>
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs font-bold border-b border-slate-200">
         <button
           onClick={() => setActiveTab('orders')}

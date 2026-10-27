@@ -277,7 +277,7 @@ export default function LoginPage({ onNavigate }) {
                     maxLength={6}
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="123456"
+                    placeholder=""
                     required
                     className="w-full p-3 text-center tracking-widest font-mono text-lg bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-emerald-500 text-slate-900"
                   />

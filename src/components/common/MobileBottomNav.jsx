@@ -1,102 +1,159 @@
+
 import React from 'react';
-import { Home, ShoppingBag, Search, ShoppingCart, User } from 'lucide-react';
+import {
+  Home,
+  ShoppingBag,
+  Search,
+  ShoppingCart,
+  User,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
 
-/**
- * Mobile Fixed Bottom Navigation Bar
- * Buttons: Home, Shop, Search, Cart, Account
- */
 export default function MobileBottomNav({ onNavigate, currentRoute }) {
-  const { user, isStaff, isAdmin } = useAuth();
   const { count, setIsDrawerOpen } = useCart();
+  const { user, validateSession } = useAuth();
 
-  // If in admin console, hide store bottom nav
-  if (currentRoute.startsWith('admin-')) {
+  async function handleAccountClick() {
+    try {
+      const valid = await validateSession();
+      onNavigate(valid ? 'account' : 'login');
+    } catch (err) {
+      console.error('Unable to validate account session:', err);
+      alert(
+        'Unable to verify your account. Please check your internet connection and try again.'
+      );
+    }
+  }
+
+  if (currentRoute?.startsWith('admin-')) {
     return null;
   }
 
+  const activeClass = 'text-emerald-600 font-bold';
+  const inactiveClass = 'text-slate-500';
+
+  const buttonClass =
+    'flex flex-1 min-w-0 h-full flex-col items-center justify-center ' +
+    'gap-0.5 rounded-lg px-0.5 py-1 transition-colors ' +
+    'active:bg-slate-100 focus-visible:outline-none ' +
+    'focus-visible:ring-2 focus-visible:ring-emerald-500';
+
+  const iconClass = 'w-5 h-5 shrink-0';
+
+  const labelClass =
+    'block max-w-full truncate text-[10px] leading-tight';
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-lg px-2 py-1.5 flex items-center justify-around md:hidden">
-      
-      {/* 1. Home */}
+    <nav
+      aria-label="Mobile navigation"
+      className="
+        fixed inset-x-0 bottom-0 z-50 md:hidden
+        flex items-stretch justify-between
+        box-border w-full
+        border-t border-slate-200/80
+        bg-white/95 backdrop-blur-md shadow-lg
+      "
+      style={{
+        left: 'env(safe-area-inset-left, 0px)',
+        right: 'env(safe-area-inset-right, 0px)',
+        width: 'auto',
+        paddingLeft: '4px',
+        paddingRight: '4px',
+        paddingTop: '6px',
+        paddingBottom: 'calc(6px + env(safe-area-inset-bottom, 0px))',
+        boxSizing: 'border-box',
+      }}
+    >
       <button
         type="button"
+        aria-label="Home"
+        aria-current={currentRoute === 'home' ? 'page' : undefined}
         onClick={() => onNavigate('home')}
-        className={`flex flex-col items-center justify-center p-1.5 rounded-xl transition-colors cursor-pointer ${
-          currentRoute === 'home' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+        className={`${buttonClass} ${
+          currentRoute === 'home' ? activeClass : inactiveClass
         }`}
       >
-        <Home className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">Home</span>
+        <Home className={iconClass} />
+        <span className={labelClass}>Home</span>
       </button>
 
-      {/* 2. Shop */}
       <button
         type="button"
+        aria-label="Shop"
+        aria-current={currentRoute === 'shop' ? 'page' : undefined}
         onClick={() => onNavigate('shop')}
-        className={`flex flex-col items-center justify-center p-1.5 rounded-xl transition-colors cursor-pointer ${
-          currentRoute === 'shop' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+        className={`${buttonClass} ${
+          currentRoute === 'shop' ? activeClass : inactiveClass
         }`}
       >
-        <ShoppingBag className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">Shop</span>
+        <ShoppingBag className={iconClass} />
+        <span className={labelClass}>Shop</span>
       </button>
 
-      {/* 3. Search */}
       <button
         type="button"
+        aria-label="Search products"
         onClick={() => {
           onNavigate('shop');
-          // Focus search input on shop page
-          setTimeout(() => {
-            const input = document.querySelector('input[type="text"]');
+
+          window.setTimeout(() => {
+            const input = document.querySelector(
+              'input[type="text"]:not([disabled])'
+            );
             input?.focus();
-          }, 150);
+          }, 200);
         }}
-        className="flex flex-col items-center justify-center p-1.5 rounded-xl transition-colors cursor-pointer text-slate-500 hover:text-slate-800"
+        className={`${buttonClass} ${inactiveClass}`}
       >
-        <Search className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">Search</span>
+        <Search className={iconClass} />
+        <span className={labelClass}>Search</span>
       </button>
 
-      {/* 4. Cart with badge */}
       <button
         type="button"
+        aria-label={`Cart${count > 0 ? `, ${count} items` : ''}`}
         onClick={() => setIsDrawerOpen(true)}
-        className="relative flex flex-col items-center justify-center p-1.5 rounded-xl transition-colors cursor-pointer text-slate-500 hover:text-slate-800"
+        className={`${buttonClass} ${inactiveClass} relative`}
       >
-        <div className="relative">
-          <ShoppingCart className="w-5 h-5" />
+        <span className="relative inline-flex shrink-0">
+          <ShoppingCart className={iconClass} />
           {count > 0 && (
-            <span className="absolute -top-1.5 -right-2 bg-emerald-600 text-white font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center animate-scale-up">
-              {count}
+            <span
+              className="
+                absolute -right-2 -top-1.5
+                flex h-4 min-w-4 items-center justify-center
+                rounded-full bg-emerald-600 px-1
+                text-[10px] font-bold leading-none text-white
+              "
+            >
+              {count > 99 ? '99+' : count}
             </span>
           )}
-        </div>
-        <span className="text-[10px] mt-0.5">Cart</span>
+        </span>
+        <span className={labelClass}>Cart</span>
       </button>
 
-      {/* 5. Account */}
       <button
         type="button"
-        onClick={() => {
-          if (user) {
-            onNavigate('account');
-          } else {
-            onNavigate('login');
-          }
-        }}
-        className={`flex flex-col items-center justify-center p-1.5 rounded-xl transition-colors cursor-pointer ${
+        aria-label={user ? 'Account' : 'Sign In'}
+        aria-current={
           currentRoute === 'account' || currentRoute === 'login'
-            ? 'text-emerald-600 font-bold'
-            : 'text-slate-500 hover:text-slate-800'
+            ? 'page'
+            : undefined
+        }
+        onClick={handleAccountClick}
+        className={`${buttonClass} ${
+          currentRoute === 'account' || currentRoute === 'login'
+            ? activeClass
+            : inactiveClass
         }`}
       >
-        <User className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">{user ? 'Account' : 'Sign In'}</span>
+        <User className={iconClass} />
+        <span className={labelClass}>
+          {user ? 'Account' : 'Sign In'}
+        </span>
       </button>
-
     </nav>
   );
 }

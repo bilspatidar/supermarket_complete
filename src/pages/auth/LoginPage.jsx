@@ -485,7 +485,7 @@ export default function LoginPage({ onNavigate }) {
 
                     onChange={(e) => setOtpCode(e.target.value)}
 
-                    placeholder="123456"
+                    placeholder=""
 
                     required
 
